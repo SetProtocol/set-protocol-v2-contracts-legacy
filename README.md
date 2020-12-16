@@ -43,12 +43,6 @@ OR `yarn test:clean` if contracts have been typings need to be updated
 
 `yarn coverage`
 
-
-### Deployment
-
-`yarn deploy:local` to run deployments locally for tests
-
-
 ## Contributing
 We highly encourage participation from the community to help shape the development of Set. If you are interested in developing on top of Set Protocol or have any questions, please ping us on [Telegram](https://t.me/joinchat/Fx8D6wyprLUlM1jMVnaRdg).
 
