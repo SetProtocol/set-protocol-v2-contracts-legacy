@@ -8,7 +8,8 @@ import {
   OneInchExchangeAdapter,
   AaveMigrationWrapAdapter,
   AaveWrapAdapter,
-  UniswapPairPriceAdapter
+  UniswapPairPriceAdapter,
+  SushiBarWrapAdapter
 } from "../contracts";
 
 import { Address, Bytes } from "./../types";
@@ -21,6 +22,7 @@ import { OneInchExchangeAdapterFactory } from "../../typechain/OneInchExchangeAd
 import { AaveMigrationWrapAdapterFactory } from "../../typechain/AaveMigrationWrapAdapterFactory";
 import { AaveWrapAdapterFactory } from "../../typechain/AaveWrapAdapterFactory";
 import { UniswapPairPriceAdapterFactory } from "../../typechain/UniswapPairPriceAdapterFactory";
+import { SushiBarWrapAdapterFactory } from "@typechain/SushiBarWrapAdapterFactory";
 
 export default class DeployAdapters {
   private _deployerSigner: Signer;
@@ -77,7 +79,15 @@ export default class DeployAdapters {
     return await new UniswapPairPriceAdapterFactory(this._deployerSigner).deploy(controller, uniswapFactory, uniswapPools);
   }
 
+  public async deploySushiBarWrapAdapter(
+    sushi: Address,
+    sushiBar: Address
+  ): Promise<SushiBarWrapAdapter> {
+    return await new SushiBarWrapAdapterFactory(this._deployerSigner).deploy(sushi, sushiBar);
+  }
+
   public async getUniswapPairPriceAdapter(uniswapAdapterAddress: Address): Promise<UniswapPairPriceAdapter> {
     return await new UniswapPairPriceAdapterFactory(this._deployerSigner).attach(uniswapAdapterAddress);
   }
+
 }
