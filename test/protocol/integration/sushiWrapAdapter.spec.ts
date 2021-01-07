@@ -1,5 +1,5 @@
 import "module-alias/register";
-import { BigNumber } from "ethers/utils";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import { Address, Account } from "@utils/types";
 import { ZERO } from "@utils/constants";
@@ -15,7 +15,7 @@ import { SushiBarWrapAdapter } from "@utils/contracts";
 
 const expect = getWaffleExpect();
 
-describe.only("SushiWrapAdapter", () => {
+describe("SushiWrapAdapter", () => {
   let owner: Account;
   let deployer: DeployHelper;
   let sushiWrapAdapter: SushiBarWrapAdapter;

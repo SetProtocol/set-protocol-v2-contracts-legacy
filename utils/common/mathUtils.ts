@@ -1,4 +1,4 @@
-import { BigNumber } from "ethers/utils";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import { PRECISE_UNIT, ZERO } from "../constants";
 
@@ -52,7 +52,9 @@ export const preciseDivCeilInt = (a: BigNumber, b: BigNumber): BigNumber => {
 
 export const divDown = (a: BigNumber, b: BigNumber): BigNumber => {
   let result = a.div(b);
-  if (a.mul(b).lt(0) && !a.mod(b).isZero()) {
+  if (a.lt(0) && b.gt(0) && !a.mod(b).isZero()) {
+    result = result.sub(1);
+  } else if (a.gt(0) && b.lt(0) && !a.mod(b.mul(-1)).isZero()) {
     result = result.sub(1);
   }
   return result;
