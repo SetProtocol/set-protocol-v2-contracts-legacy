@@ -9,6 +9,10 @@ import {
   AmmAdapterMock,
   ClaimAdapterMock,
   ContractCallerMock,
+  CompoundMock,
+  ComptrollerMock,
+  DebtIssuanceMock,
+  DebtModuleMock,
   ExplicitERC20Mock,
   GaugeControllerMock,
   GodModeMock,
@@ -29,19 +33,24 @@ import {
   StakingAdapterMock,
   StandardTokenMock,
   StandardTokenWithFeeMock,
+  TradeAdapterMock,
   Uint256ArrayUtilsMock,
   WrapAdapterMock,
   ZeroExMock,
 } from "../contracts";
 
-import { ether } from "../common";
+import { convertLibraryNameToLinkId, ether } from "../common";
 
 import { AaveLendingPoolCoreMock__factory } from "../../typechain/factories/AaveLendingPoolCoreMock__factory";
 import { AaveLendingPoolMock__factory } from "../../typechain/factories/AaveLendingPoolMock__factory";
 import { AddressArrayUtilsMock__factory } from "../../typechain/factories/AddressArrayUtilsMock__factory";
 import { AmmAdapterMock__factory } from "../../typechain/factories/AmmAdapterMock__factory";
 import { ClaimAdapterMock__factory } from "../../typechain/factories/ClaimAdapterMock__factory";
+import { CompoundMock__factory } from "../../typechain/factories/CompoundMock__factory";
+import { ComptrollerMock__factory } from "../../typechain/factories/ComptrollerMock__factory";
 import { ContractCallerMock__factory } from "../../typechain/factories/ContractCallerMock__factory";
+import { DebtIssuanceMock__factory } from "../../typechain/factories/DebtIssuanceMock__factory";
+import { DebtModuleMock__factory } from "../../typechain/factories/DebtModuleMock__factory";
 import { ExplicitERC20Mock__factory } from "../../typechain/factories/ExplicitERC20Mock__factory";
 import { GaugeControllerMock__factory } from "../../typechain/factories/GaugeControllerMock__factory";
 import { GodModeMock__factory } from "../../typechain/factories/GodModeMock__factory";
@@ -62,6 +71,7 @@ import { ResourceIdentifierMock__factory } from "../../typechain/factories/Resou
 import { StakingAdapterMock__factory } from "../../typechain/factories/StakingAdapterMock__factory";
 import { StandardTokenMock__factory } from "../../typechain/factories/StandardTokenMock__factory";
 import { StandardTokenWithFeeMock__factory } from "../../typechain/factories/StandardTokenWithFeeMock__factory";
+import { TradeAdapterMock__factory } from "../../typechain/factories/TradeAdapterMock__factory";
 import { Uint256ArrayUtilsMock__factory } from "../../typechain/factories/Uint256ArrayUtilsMock__factory";
 import { WrapAdapterMock__factory } from "../../typechain/factories/WrapAdapterMock__factory";
 import { ZeroExMock__factory } from "../../typechain/factories/ZeroExMock__factory";
@@ -115,6 +125,10 @@ export default class DeployMocks {
 
   public async deployGodModeMock(controllerAddress: Address): Promise<GodModeMock> {
     return await new GodModeMock__factory(this._deployerSigner).deploy(controllerAddress);
+  }
+
+  public async deployDebtModuleMock(controllerAddress: Address, moduleAddress: Address): Promise<DebtModuleMock> {
+    return await new DebtModuleMock__factory(this._deployerSigner).deploy(controllerAddress, moduleAddress);
   }
 
   public async deployGovernanceAdapterMock(initialProposalId: BigNumberish): Promise<GovernanceAdapterMock> {
@@ -199,6 +213,10 @@ export default class DeployMocks {
       .deploy(initialAccount, initialBalance, name, symbol, fee);
   }
 
+  public async deployTradeAdapterMock(): Promise<TradeAdapterMock> {
+    return await new TradeAdapterMock__factory(this._deployerSigner).deploy();
+  }
+
   public async deployAmmAdapterMock(_underlyingTokens: Address[]): Promise<AmmAdapterMock> {
     return await new AmmAdapterMock__factory(this._deployerSigner).deploy(_underlyingTokens);
   }
@@ -225,6 +243,34 @@ export default class DeployMocks {
 
   public async deployContractCallerMock(): Promise<ContractCallerMock> {
     return await new ContractCallerMock__factory(this._deployerSigner).deploy();
+  }
+
+  public async deployDebtIssuanceMock(): Promise<DebtIssuanceMock> {
+    return await new DebtIssuanceMock__factory(this._deployerSigner).deploy();
+  }
+
+  public async deployComptrollerMock(
+    comp: Address,
+    compAmount: BigNumber,
+    cToken: Address
+  ): Promise<ComptrollerMock> {
+    return await new ComptrollerMock__factory(this._deployerSigner).deploy(
+      comp,
+      compAmount,
+      cToken
+    );
+  }
+
+  public async deployCompoundMock(libraryName: string, libraryAddress: Address): Promise<CompoundMock> {
+    const linkId = convertLibraryNameToLinkId(libraryName);
+
+    return await new CompoundMock__factory(
+      // @ts-ignore
+      {
+        [linkId]: libraryAddress,
+      },
+      this._deployerSigner
+    ).deploy();
   }
 
   /*************************************
