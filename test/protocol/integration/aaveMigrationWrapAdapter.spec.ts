@@ -1,5 +1,5 @@
 import "module-alias/register";
-import { BigNumber } from "ethers/utils";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import { Address, Account } from "@utils/types";
 import { ZERO } from "@utils/constants";
@@ -114,7 +114,7 @@ describe("AaveMigrationWrapAdapter", () => {
     it("should return correct data for valid pair", async () => {
       const [targetAddress, ethValue, callData] = await subject();
 
-      const expectedCallData = aaveSetup.lendToAaveMigrator.interface.functions.migrateFromLEND.encode([subjectUnderlyingUnits]);
+      const expectedCallData = aaveSetup.lendToAaveMigrator.interface.encodeFunctionData("migrateFromLEND", [subjectUnderlyingUnits]);
 
       expect(targetAddress).to.eq(aaveSetup.lendToAaveMigrator.address);
       expect(ethValue).to.eq(ZERO);

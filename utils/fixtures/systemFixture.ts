@@ -1,6 +1,6 @@
-import { JsonRpcProvider, Web3Provider } from "ethers/providers";
+import { JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
 import { ContractTransaction, Signer } from "ethers";
-import { BigNumber } from "ethers/utils";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import {
   BasicIssuanceModule,
@@ -13,7 +13,7 @@ import {
   SetValuer,
   StandardTokenMock,
   StreamingFeeModule,
-  Weth9,
+  WETH9,
   NavIssuanceModule
 } from "../contracts";
 import DeployHelper from "../deploys";
@@ -28,7 +28,7 @@ import {
   MAX_UINT_256,
 } from "../constants";
 
-import { SetTokenFactory } from "../../typechain/SetTokenFactory";
+import { SetToken__factory } from "../../typechain/factories/SetToken__factory";
 
 export class SystemFixture {
   private _provider: Web3Provider | JsonRpcProvider;
@@ -48,7 +48,7 @@ export class SystemFixture {
   public streamingFeeModule: StreamingFeeModule;
   public navIssuanceModule: NavIssuanceModule;
 
-  public weth: Weth9;
+  public weth: WETH9;
   public usdc: StandardTokenMock;
   public wbtc: StandardTokenMock;
   public dai: StandardTokenMock;
@@ -151,7 +151,7 @@ export class SystemFixture {
 
     const retrievedSetAddress = await new ProtocolUtils(this._provider).getCreatedSetTokenAddress(txHash.hash);
 
-    return new SetTokenFactory(this._ownerSigner).attach(retrievedSetAddress);
+    return new SetToken__factory(this._ownerSigner).attach(retrievedSetAddress);
   }
 
   public async createNonControllerEnabledSetToken(

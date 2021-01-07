@@ -1,5 +1,5 @@
 import "module-alias/register";
-import { BigNumber } from "ethers/utils";
+import { BigNumber } from "@ethersproject/bignumber";
 import { SetToken, SetValuer } from "@utils/contracts";
 import DeployHelper from "@utils/deploys";
 import {
@@ -102,7 +102,6 @@ describe("SetValuer", () => {
       ).add(preciseMul(
         normalizedUnitTwo, setup.component1Price
       ));
-
       expect(setTokenValuation).to.eq(expectedValuation);
     });
 

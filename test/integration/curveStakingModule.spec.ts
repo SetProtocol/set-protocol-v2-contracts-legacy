@@ -1,5 +1,5 @@
 import "module-alias/register";
-import { BigNumber } from "ethers/utils";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import { Address, Account } from "@utils/types";
 import { ADDRESS_ZERO, ZERO } from "@utils/constants";
@@ -126,10 +126,10 @@ describe("curveStakingModule", () => {
         const amount = ether(10);
 
         // Add liquidity to pool
-        const approveDepositCallData = setup.dai.interface.functions.approve.encode([curveSetup.deposit.address, amount]);
+        const approveDepositCallData = setup.dai.interface.encodeFunctionData("approve", [curveSetup.deposit.address, amount]);
         await setToken.invoke(setup.dai.address, ZERO, approveDepositCallData);
 
-        const addLiquidityCallData = curveSetup.deposit.interface.functions.add_liquidity.encode([[amount, 0, 0, 0], 0]);
+        const addLiquidityCallData = curveSetup.deposit.interface.encodeFunctionData("add_liquidity", [[amount, 0, 0, 0], 0]);
         await setToken.invoke(curveSetup.deposit.address, ZERO, addLiquidityCallData, {
           gasLimit: 5000000,
         });
