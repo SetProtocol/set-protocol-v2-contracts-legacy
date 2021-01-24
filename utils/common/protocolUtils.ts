@@ -15,7 +15,11 @@ export class ProtocolUtils {
     this._provider = _provider;
   }
 
-  public async getCreatedSetTokenAddress (txnHash: string | undefined): Promise<string> {
+  public async getCreatedSetTokenAddress(
+    txnHash: string | undefined,
+    fromBlockNumber?: string,
+    toBlockNumber?: string,
+  ): Promise<string> {
     if (!txnHash) {
       throw new Error("Invalid transaction hash");
     }
@@ -24,9 +28,10 @@ export class ProtocolUtils {
     const iface = new ethers.utils.Interface(abi);
 
     const topic = ethers.utils.id("SetTokenCreated(address,address,string,string)");
+
     const logs = await this._provider.getLogs({
-      fromBlock: "latest",
-      toBlock: "latest",
+      fromBlock: fromBlockNumber || "latest",
+      toBlock: toBlockNumber || "latest",
       topics: [topic],
     });
 
