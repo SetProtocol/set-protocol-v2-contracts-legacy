@@ -1,6 +1,7 @@
 pragma solidity 0.6.10;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import {DIAOracle} from "../../external/contracts/DIAOracle.sol";
+import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
  * @title DIAPriceOracle
@@ -11,6 +12,7 @@ import {DIAOracle} from "../../external/contracts/DIAOracle.sol";
  */
 contract DIAPriceOracle is Ownable {
     // Token address of the bridge asset that prices are derived from if the specified pair price is missing, required by the interface
+    using SafeMath for uint256;
     address public immutable masterQuoteAsset;
     DIAOracle public immutable underlyingOracle;
     mapping (address => mapping (address => string)) private  priceIdentifiers;
@@ -28,7 +30,7 @@ contract DIAPriceOracle is Ownable {
     function getPrice(address _assetOne, address _assetTwo) external view returns (uint256) {
         uint256 price;
         (price,,,) = underlyingOracle.getCoinInfo(getPriceIdentifier(_assetOne,_assetTwo));
-        return price;
+        return price.mul(10);
     }
 
     function addPair(address _assetOne, address _assetTwo, string memory identifier) onlyOwner external {

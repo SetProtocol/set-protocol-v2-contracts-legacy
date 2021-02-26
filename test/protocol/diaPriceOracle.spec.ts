@@ -9,7 +9,6 @@ import {
   getAccounts,
   getWaffleExpect
 } from "@utils/test/index";
-import { ether } from "@utils/index";
 
 const expect = getWaffleExpect();
 
@@ -52,7 +51,7 @@ describe.only("DIAPriceOracle", () => {
 
   describe("adding and removing a pair", async () => {
     before(configure);
-    const ethPrice: BigNumber = ether(1500);
+    const ethPrice: BigNumber = BigNumber.from("150000000");
     it(
       "WHEN there is no price feed configured, THEN it should revert",
        () => expect(diaPriceOracle.getPrice(weth.address, usdc.address)).to.be.revertedWith("Price feed not available")
@@ -75,7 +74,8 @@ describe.only("DIAPriceOracle", () => {
            () => expect(addPairResponse).to.emit(diaPriceOracle, "PairAdded").withArgs(weth.address, usdc.address, identifier, "")
           );
         it("AND the price value can be retrieved", async() => {
-          expect(await diaPriceOracle.getPrice(weth.address, usdc.address)).to.eq(ethPrice);
+          // converting 5 decimals to usdc's 6
+          expect(await diaPriceOracle.getPrice(weth.address, usdc.address)).to.eq(ethPrice.mul(10));
         });
 
         describe("AND WHEN removing a price feed", () => {
@@ -137,6 +137,21 @@ describe.only("DIAPriceOracle", () => {
       it("WHEN trying to remove it as an unauthorized user, THEN it should revert", async() => {
         const connectedDiaPriceOracle: DIAPriceOracle = diaPriceOracle.connect(unrelatedUser.wallet);
         await expect(connectedDiaPriceOracle.removePair(weth.address, usdc.address)).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+    });
+  });
+
+  describe("decimal conversions", () => {
+    before(() => configure);
+    describe("GIVEN a diaPriceOracle with a five-decimal DIA pricefeed", () => {
+      before(async () =>  {
+        await diaPriceOracle.addPair(weth.address, usdc.address, identifier);
+        // Price of ETH right now, as returned by the dia oracle
+        await diaOracle.updateCoinInfo(identifier, identifier, "180322583", 0, Date.now().toString());
+      });
+
+      it("THEN the diaPriceOracle returns the price with USDCs six decimals", async() => {
+        expect(await diaPriceOracle.getPrice(weth.address, usdc.address)).to.eq("1803225830");
       });
     });
   });
