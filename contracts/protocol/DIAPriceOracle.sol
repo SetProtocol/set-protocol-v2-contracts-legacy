@@ -1,5 +1,6 @@
 pragma solidity 0.6.10;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {DIAOracle} from "../../external/contracts/DIAOracle.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
@@ -13,6 +14,7 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 contract DIAPriceOracle is Ownable {
     // Token address of the bridge asset that prices are derived from if the specified pair price is missing, required by the interface
     using SafeMath for uint256;
+    uint public constant PRICEFEED_DECIMALS = 10**5;
     address public immutable masterQuoteAsset;
     DIAOracle public immutable underlyingOracle;
     mapping (address => mapping (address => string)) private  priceIdentifiers;
@@ -29,8 +31,16 @@ contract DIAPriceOracle is Ownable {
     // required by the interface
     function getPrice(address _assetOne, address _assetTwo) external view returns (uint256) {
         uint256 price;
-        (price,,,) = underlyingOracle.getCoinInfo(getPriceIdentifier(_assetOne,_assetTwo));
-        return price.mul(10);
+        (bool inverse, string memory identifier) = getPriceIdentifier(_assetOne,_assetTwo);
+        (price,,,) = underlyingOracle.getCoinInfo(identifier);
+        uint256 assetTwoDecimals = uint256(10)** ERC20(_assetTwo).decimals();
+        if (inverse) {
+          uint256 assetOneDecimals = uint256(10)**ERC20(_assetOne).decimals();
+          return assetTwoDecimals.mul(PRICEFEED_DECIMALS).div(price);
+        } else {
+          // assetOne decimals already considered by the oracle
+          return price.mul(assetTwoDecimals).div(PRICEFEED_DECIMALS);
+        }
     }
 
     function addPair(address _assetOne, address _assetTwo, string memory identifier) onlyOwner external {
@@ -45,9 +55,13 @@ contract DIAPriceOracle is Ownable {
       delete(priceIdentifiers[_assetOne][_assetTwo]);
     }
 
-    function getPriceIdentifier (address _assetOne, address _assetTwo) public view returns (string memory identifier){
+    function getPriceIdentifier (address _assetOne, address _assetTwo) public view returns (bool inverse, string memory identifier){
         identifier = priceIdentifiers[_assetOne][_assetTwo];
+        inverse = false;
+        if (bytes(identifier).length == 0){
+            identifier = priceIdentifiers[_assetTwo][_assetOne];
+            inverse = true;
+        }
         require(bytes(identifier).length != 0,"Price feed not available");
-        return identifier;
     }
 }

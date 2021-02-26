@@ -4,19 +4,20 @@ import { Account } from "@utils/test/types";
 import { BigNumber } from "@ethersproject/bignumber";
 
 import { DIAPriceOracle, DIAOracle } from "@utils/contracts";
+import { SystemFixture } from "@utils/fixtures";
 import DeployHelper from "@utils/deploys";
 import {
   getAccounts,
+  getSystemFixture,
   getWaffleExpect
 } from "@utils/test/index";
 
 const expect = getWaffleExpect();
 
-describe.only("DIAPriceOracle", () => {
+describe("DIAPriceOracle", () => {
   let wallet: Account;
 
-  let usdc: Account;
-  let weth: Account;
+  let setup: SystemFixture;
   let unrelatedUser: Account;
   const identifier: string = "ETH/USD";
 
@@ -27,14 +28,16 @@ describe.only("DIAPriceOracle", () => {
 
   const configure = async () => {
     // Using this syntax for sol-coverage to work
-    [wallet, usdc, weth, unrelatedUser ] = await getAccounts();
+    [wallet, unrelatedUser ] = await getAccounts();
+    setup = getSystemFixture(wallet.address);
+    await setup.initialize();
 
     deployer = new DeployHelper(wallet.wallet);
 
     diaOracle = await deployer.external.deployDIAOracle();
 
     diaPriceOracle = await deployer.core.deployDIAPriceOracle(
-      usdc.address,
+      setup.usdc.address,
       diaOracle.address
     );
   };
@@ -42,7 +45,7 @@ describe.only("DIAPriceOracle", () => {
   describe("constructor", async () => {
     before(configure);
     it("should have the masterQuoteAsset configured", async () => {
-      expect(await diaPriceOracle.masterQuoteAsset()).to.eq(usdc.address);
+      expect(await diaPriceOracle.masterQuoteAsset()).to.eq(setup.usdc.address);
     });
     it("should have the underlyingOracle configured", async () => {
       expect(await diaPriceOracle.underlyingOracle()).to.eq(diaOracle.address);
@@ -54,7 +57,7 @@ describe.only("DIAPriceOracle", () => {
     const ethPrice: BigNumber = BigNumber.from("150000000");
     it(
       "WHEN there is no price feed configured, THEN it should revert",
-       () => expect(diaPriceOracle.getPrice(weth.address, usdc.address)).to.be.revertedWith("Price feed not available")
+       () => expect(diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.be.revertedWith("Price feed not available")
       );
 
     describe("GIVEN a valid price feed", () => {
@@ -63,31 +66,31 @@ describe.only("DIAPriceOracle", () => {
         // Should be TransactionResponse, but i don't actually know from where to import it
         let addPairResponse: any;
         before(async() =>  {
-          addPairResponse = diaPriceOracle.addPair(weth.address, usdc.address, identifier);
+          addPairResponse = diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, identifier);
           await addPairResponse;
         });
         it("THEN the pricefeed identifier can be retrieved", async() => {
-          expect(await diaPriceOracle.getPriceIdentifier(weth.address, usdc.address)).to.eq(identifier);
+          expect((await diaPriceOracle.getPriceIdentifier(setup.weth.address, setup.usdc.address)).identifier).to.eq(identifier);
         });
         it(
           "AND an event is emmitted",
-           () => expect(addPairResponse).to.emit(diaPriceOracle, "PairAdded").withArgs(weth.address, usdc.address, identifier, "")
+           () => expect(addPairResponse).to.emit(diaPriceOracle, "PairAdded").withArgs(setup.weth.address, setup.usdc.address, identifier, "")
           );
         it("AND the price value can be retrieved", async() => {
           // converting 5 decimals to usdc's 6
-          expect(await diaPriceOracle.getPrice(weth.address, usdc.address)).to.eq(ethPrice.mul(10));
+          expect(await diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.eq(ethPrice.mul(10));
         });
 
         describe("AND WHEN removing a price feed", () => {
           let removePairResponse: any;
           before(async () => {
-            removePairResponse = diaPriceOracle.removePair(weth.address, usdc.address);
+            removePairResponse = diaPriceOracle.removePair(setup.weth.address, setup.usdc.address);
             await removePairResponse;
           });
-          it("THEN queries for it should revert", () => expect(diaPriceOracle.getPrice(weth.address, usdc.address)).to.be.revertedWith("Price feed not available"));
+          it("THEN queries for it should revert", () => expect(diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.be.revertedWith("Price feed not available"));
           it(
             "AND an event is emmitted",
-             () => expect(removePairResponse).to.emit(diaPriceOracle, "PairRemoved").withArgs(weth.address, usdc.address, identifier)
+             () => expect(removePairResponse).to.emit(diaPriceOracle, "PairRemoved").withArgs(setup.weth.address, setup.usdc.address, identifier)
           );
         });
       });
@@ -98,19 +101,19 @@ describe.only("DIAPriceOracle", () => {
     before(configure);
     const otherIdentifier = "meme";
     describe("GIVEN a diaPriceOracle with a pricefeed", () => {
-      before(() =>  diaPriceOracle.addPair(weth.address, usdc.address, identifier) );
+      before(() =>  diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, identifier) );
       describe("WHEN adding a pricefeed with the same tokens again", () => {
         let response: any;
         before(async() => {
-          response = diaPriceOracle.addPair(weth.address, usdc.address, otherIdentifier);
+          response = diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, otherIdentifier);
           await response;
         });
         it("THEN the second pricefeed overwrites the first", async () => {
-          expect(await diaPriceOracle.getPriceIdentifier(weth.address, usdc.address)).to.eq(otherIdentifier);
+          expect((await diaPriceOracle.getPriceIdentifier(setup.weth.address, setup.usdc.address)).identifier).to.eq(otherIdentifier);
         });
         it(
           "AND an event is emitted",
-           () => expect(response).to.emit(diaPriceOracle, "PairAdded").withArgs(weth.address, usdc.address, otherIdentifier, identifier)
+           () => expect(response).to.emit(diaPriceOracle, "PairAdded").withArgs(setup.weth.address, setup.usdc.address, otherIdentifier, identifier)
         );
       });
     });
@@ -120,7 +123,7 @@ describe.only("DIAPriceOracle", () => {
     before(configure);
     it(
       "WHEN removing a non-existent pair, THEN it should revert",
-       () =>  expect(diaPriceOracle.removePair(weth.address, usdc.address)).to.be.revertedWith("Pair does not exist")
+       () =>  expect(diaPriceOracle.removePair(setup.weth.address, setup.usdc.address)).to.be.revertedWith("Pair does not exist")
     );
   });
 
@@ -129,29 +132,75 @@ describe.only("DIAPriceOracle", () => {
     it( "Only the contract admin should be able to add a pair", async() => {
       const connectedDiaPriceOracle: DIAPriceOracle = diaPriceOracle.connect(unrelatedUser.wallet);
       await expect(
-        connectedDiaPriceOracle.addPair(weth.address, usdc.address, identifier)
+        connectedDiaPriceOracle.addPair(setup.weth.address, setup.usdc.address, identifier)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
     describe("GIVEN a diaPriceOracle with a pricefeed configured", () => {
-      before(() => diaPriceOracle.addPair(weth.address, usdc.address, identifier));
+      before(() => diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, identifier));
       it("WHEN trying to remove it as an unauthorized user, THEN it should revert", async() => {
         const connectedDiaPriceOracle: DIAPriceOracle = diaPriceOracle.connect(unrelatedUser.wallet);
-        await expect(connectedDiaPriceOracle.removePair(weth.address, usdc.address)).to.be.revertedWith("Ownable: caller is not the owner");
+        await expect(
+          connectedDiaPriceOracle.removePair(setup.weth.address, setup.usdc.address))
+          .to.be.revertedWith("Ownable: caller is not the owner");
       });
     });
   });
 
   describe("decimal conversions", () => {
-    before(() => configure);
-    describe("GIVEN a diaPriceOracle with a five-decimal DIA pricefeed", () => {
+    before(configure);
+    describe("GIVEN a diaPriceOracle with a five-decimal DIA pricefeed denominated in USD", () => {
+      const wethUsdcIdentifier = "weth";
       before(async () =>  {
-        await diaPriceOracle.addPair(weth.address, usdc.address, identifier);
+        await diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, wethUsdcIdentifier);
+        // Price of ETH right now, as returned by the dia oracle
+        await diaOracle.updateCoinInfo(wethUsdcIdentifier, wethUsdcIdentifier, "180322583", 0, Date.now().toString());
+      });
+
+      it(
+        "WHEN asking for a WETH (18 decimal) price denominated in USDC, THEN the diaPriceOracle returns the price with USDCs six decimals",
+        async() => {
+          expect(await diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.eq("1803225830");
+      });
+    });
+
+    describe("GIVEN a diaPriceOracle with a five-decimal DIA pricefeed denominated in USD", () => {
+      const btcUsdcIdentifier = "bitcoin";
+      before(async () =>  {
+        await diaPriceOracle.addPair(setup.wbtc.address, setup.usdc.address, btcUsdcIdentifier);
+        // Price of btc right now, as returned by the dia oracle
+        await diaOracle.updateCoinInfo(btcUsdcIdentifier, btcUsdcIdentifier, "5173342229", 0, Date.now().toString());
+      });
+
+      it(
+        "WHEN asking for a WBTC (8 decimal) price denominated in USDC, THEN the diaPriceOracle returns the price with USDCs six decimals",
+        async() => {
+          expect(await diaPriceOracle.getPrice(setup.wbtc.address, setup.usdc.address)).to.eq("51733422290");
+      });
+      it(
+        "AND WHEN asking for a USDC (6 decimal) price denominated in WBTC, THEN the diaPriceOracle returns the price with WBTC eight decimals",
+        async() => {
+          expect(await diaPriceOracle.getPrice(setup.usdc.address, setup.wbtc.address)).to.eq("1932");
+      });
+    });
+  });
+
+  describe("inverse prices", () => {
+    before(configure);
+    describe("GIVEN a diaPriceOracle with a A/B pricefeed", () => {
+      before(async () =>  {
+        await diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, identifier);
         // Price of ETH right now, as returned by the dia oracle
         await diaOracle.updateCoinInfo(identifier, identifier, "180322583", 0, Date.now().toString());
       });
+      it("THEN the identifier for B/A is the same AND the inverse flag is on", async () => {
+        const result = await diaPriceOracle.getPriceIdentifier(setup.usdc.address, setup.weth.address);
+        expect(result.identifier).to.eq(identifier);
+        expect(result.inverse).to.be.true;
+      });
 
-      it("THEN the diaPriceOracle returns the price with USDCs six decimals", async() => {
-        expect(await diaPriceOracle.getPrice(weth.address, usdc.address)).to.eq("1803225830");
+      it("AND WHEN asking for the B/A pricefeed, THEN it should provide it", async() => {
+        // 1 usdc denominated in eth
+        expect(await diaPriceOracle.getPrice(setup.usdc.address, setup.weth.address)).to.eq("554561710110374");
       });
     });
   });
