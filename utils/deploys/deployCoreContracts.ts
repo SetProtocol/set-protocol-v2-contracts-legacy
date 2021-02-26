@@ -5,6 +5,7 @@ import {
   Controller,
   IntegrationRegistry,
   PriceOracle,
+  DIAPriceOracle,
   SetToken,
   SetTokenCreator,
   SetValuer
@@ -15,6 +16,7 @@ import { Address } from "./../types";
 import { Controller__factory } from "../../typechain/factories/Controller__factory";
 import { IntegrationRegistry__factory } from "../../typechain/factories/IntegrationRegistry__factory";
 import { PriceOracle__factory } from "../../typechain/factories/PriceOracle__factory";
+import { DIAPriceOracle__factory } from "../../typechain/factories/DIAPriceOracle__factory";
 import { SetToken__factory } from "../../typechain/factories/SetToken__factory";
 import { SetTokenCreator__factory } from "../../typechain/factories/SetTokenCreator__factory";
 import { SetValuer__factory } from "../../typechain/factories/SetValuer__factory";
@@ -82,6 +84,13 @@ export default class DeployCoreContracts {
       assetTwos,
       oracles,
     );
+  }
+
+  public async deployDIAPriceOracle(
+    masterQuoteAsset: Address,
+    oracle: Address,
+  ): Promise<DIAPriceOracle> {
+    return await new DIAPriceOracle__factory(this._deployerSigner).deploy(masterQuoteAsset, oracle);
   }
 
   public async getPriceOracle(priceOracleAddress: Address): Promise<PriceOracle> {

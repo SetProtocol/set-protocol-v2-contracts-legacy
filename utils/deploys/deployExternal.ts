@@ -15,7 +15,8 @@ import {
   WhitePaperInterestRateModel
 } from "./../contracts/compound";
 import {
-  WETH9
+  WETH9,
+  DIAOracle
 } from "./../contracts";
 
 import { Address } from "./../types";
@@ -108,6 +109,7 @@ import {
 import { BFactory__factory } from "../../typechain/factories/BFactory__factory";
 import { BRegistry__factory } from "../../typechain/factories/BRegistry__factory";
 import { ExchangeProxy__factory } from "../../typechain/factories/ExchangeProxy__factory";
+import { DIAOracle__factory } from "../../typechain/factories/DIAOracle__factory";
 
 export default class DeployExternalContracts {
   private _deployerSigner: Signer;
@@ -429,6 +431,10 @@ export default class DeployExternalContracts {
 
   public async deployExchangeProxy(weth: Address): Promise<ExchangeProxy> {
     return await new ExchangeProxy__factory(this._deployerSigner).deploy(weth);
+  }
+
+  public async deployDIAOracle(): Promise<DIAOracle> {
+    return await new DIAOracle__factory(this._deployerSigner).deploy();
   }
 
   public async deployBRegistry(factory: Address): Promise<BRegistry> {
