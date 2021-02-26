@@ -24,6 +24,7 @@ import {
   ModuleBaseMock,
   NAVIssuanceCaller,
   NAVIssuanceHookMock,
+  CustomSetValuerMock,
   OneInchExchangeMock,
   OracleAdapterMock,
   OracleMock,
@@ -61,6 +62,7 @@ import { ManagerIssuanceHookMock__factory } from "../../typechain/factories/Mana
 import { ModuleBaseMock__factory } from "../../typechain/factories/ModuleBaseMock__factory";
 import { ModuleIssuanceHookMock__factory } from "../../typechain/factories/ModuleIssuanceHookMock__factory";
 import { NAVIssuanceCaller__factory } from "../../typechain/factories/NAVIssuanceCaller__factory";
+import { CustomSetValuerMock__factory } from "../../typechain/factories/CustomSetValuerMock__factory";
 import { NAVIssuanceHookMock__factory } from "../../typechain/factories/NAVIssuanceHookMock__factory";
 import { OneInchExchangeMock__factory } from "../../typechain/factories/OneInchExchangeMock__factory";
 import { OracleAdapterMock__factory } from "../../typechain/factories/OracleAdapterMock__factory";
@@ -101,6 +103,9 @@ export default class DeployMocks {
 
   public async deployNavIssuanceHookMock(): Promise<NAVIssuanceHookMock> {
     return await new NAVIssuanceHookMock__factory(this._deployerSigner).deploy();
+  }
+  public async deployCustomSetValuerMock(): Promise<CustomSetValuerMock> {
+    return await new CustomSetValuerMock__factory(this._deployerSigner).deploy();
   }
 
   public async deployNAVIssuanceCaller(navIssuanceModule: Address): Promise<NAVIssuanceCaller> {
