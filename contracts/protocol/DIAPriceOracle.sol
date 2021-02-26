@@ -1,7 +1,6 @@
 pragma solidity 0.6.10;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {DIAOracle} from "../../external/contracts/DIAOracle.sol";
+import { DIAOracle } from "../../external/contracts/DIAOracle.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
@@ -14,7 +13,9 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 contract DIAPriceOracle is Ownable {
     // Token address of the bridge asset that prices are derived from if the specified pair price is missing, required by the interface
     using SafeMath for uint256;
-    uint public constant PRICEFEED_DECIMALS = 10**5;
+    // DIA oracle returns 5 decimals, and the result requires 18
+    uint public constant DECIMAL_CORRECTION = 10**13;
+    uint public constant WAD = 10**18;
     address public immutable masterQuoteAsset;
     DIAOracle public immutable underlyingOracle;
     mapping (address => mapping (address => string)) private  priceIdentifiers;
@@ -33,13 +34,10 @@ contract DIAPriceOracle is Ownable {
         uint256 price;
         (bool inverse, string memory identifier) = getPriceIdentifier(_assetOne,_assetTwo);
         (price,,,) = underlyingOracle.getCoinInfo(identifier);
-        uint256 assetTwoDecimals = uint256(10)** ERC20(_assetTwo).decimals();
         if (inverse) {
-          uint256 assetOneDecimals = uint256(10)**ERC20(_assetOne).decimals();
-          return assetTwoDecimals.mul(PRICEFEED_DECIMALS).div(price);
+          return WAD.mul(WAD).div(price.mul(DECIMAL_CORRECTION));
         } else {
-          // assetOne decimals already considered by the oracle
-          return price.mul(assetTwoDecimals).div(PRICEFEED_DECIMALS);
+          return price.mul(DECIMAL_CORRECTION);
         }
     }
 

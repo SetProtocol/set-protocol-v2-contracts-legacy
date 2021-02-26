@@ -11,8 +11,15 @@ import {
   getSystemFixture,
   getWaffleExpect
 } from "@utils/test/index";
+import {
+  ether,
+} from "@utils/index";
 
 const expect = getWaffleExpect();
+
+const inverse = (number: BigNumber): BigNumber => {
+  return ether(1).mul(ether(1)).div(number);
+};
 
 describe("DIAPriceOracle", () => {
   let wallet: Account;
@@ -20,6 +27,10 @@ describe("DIAPriceOracle", () => {
   let setup: SystemFixture;
   let unrelatedUser: Account;
   const identifier: string = "ETH/USD";
+  const ethPriceWithDiaDecimals = "180322583";
+  const btcPriceWithDiaDecimals = "5173342229";
+  const ethPriceInWad = ether("1803.22583");
+  const btcPriceInWad = ether("51733.42229");
 
   let diaOracle: DIAOracle;
   let diaPriceOracle: DIAPriceOracle;
@@ -54,14 +65,13 @@ describe("DIAPriceOracle", () => {
 
   describe("adding and removing a pair", async () => {
     before(configure);
-    const ethPrice: BigNumber = BigNumber.from("150000000");
     it(
       "WHEN there is no price feed configured, THEN it should revert",
        () => expect(diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.be.revertedWith("Price feed not available")
       );
 
     describe("GIVEN a valid price feed", () => {
-      before(() => diaOracle.updateCoinInfo(identifier, identifier, ethPrice, 0, Date.now().toString()));
+      before(() => diaOracle.updateCoinInfo(identifier, identifier, ethPriceWithDiaDecimals, 0, Date.now().toString()));
       describe("WHEN adding a pair to a DiaPriceOracle", () => {
         // Should be TransactionResponse, but i don't actually know from where to import it
         let addPairResponse: any;
@@ -77,8 +87,7 @@ describe("DIAPriceOracle", () => {
            () => expect(addPairResponse).to.emit(diaPriceOracle, "PairAdded").withArgs(setup.weth.address, setup.usdc.address, identifier, "")
           );
         it("AND the price value can be retrieved", async() => {
-          // converting 5 decimals to usdc's 6
-          expect(await diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.eq(ethPrice.mul(10));
+          expect(await diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.eq(ethPriceInWad);
         });
 
         describe("AND WHEN removing a price feed", () => {
@@ -153,13 +162,13 @@ describe("DIAPriceOracle", () => {
       before(async () =>  {
         await diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, wethUsdcIdentifier);
         // Price of ETH right now, as returned by the dia oracle
-        await diaOracle.updateCoinInfo(wethUsdcIdentifier, wethUsdcIdentifier, "180322583", 0, Date.now().toString());
+        await diaOracle.updateCoinInfo(wethUsdcIdentifier, wethUsdcIdentifier, ethPriceWithDiaDecimals, 0, Date.now().toString());
       });
 
       it(
-        "WHEN asking for a WETH (18 decimal) price denominated in USDC, THEN the diaPriceOracle returns the price with USDCs six decimals",
+        "WHEN asking for a WETH (18 decimal) price denominated in USDC, THEN the diaPriceOracle returns the price with WAD precision",
         async() => {
-          expect(await diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.eq("1803225830");
+          expect(await diaPriceOracle.getPrice(setup.weth.address, setup.usdc.address)).to.eq(ethPriceInWad);
       });
     });
 
@@ -168,18 +177,18 @@ describe("DIAPriceOracle", () => {
       before(async () =>  {
         await diaPriceOracle.addPair(setup.wbtc.address, setup.usdc.address, btcUsdcIdentifier);
         // Price of btc right now, as returned by the dia oracle
-        await diaOracle.updateCoinInfo(btcUsdcIdentifier, btcUsdcIdentifier, "5173342229", 0, Date.now().toString());
+        await diaOracle.updateCoinInfo(btcUsdcIdentifier, btcUsdcIdentifier, btcPriceWithDiaDecimals, 0, Date.now().toString());
       });
 
       it(
-        "WHEN asking for a WBTC (8 decimal) price denominated in USDC, THEN the diaPriceOracle returns the price with USDCs six decimals",
+        "WHEN asking for a WBTC (8 decimal) price denominated in USDC, THEN the diaPriceOracle returns the price with WAD precision",
         async() => {
-          expect(await diaPriceOracle.getPrice(setup.wbtc.address, setup.usdc.address)).to.eq("51733422290");
+          expect(await diaPriceOracle.getPrice(setup.wbtc.address, setup.usdc.address)).to.eq(btcPriceInWad);
       });
       it(
-        "AND WHEN asking for a USDC (6 decimal) price denominated in WBTC, THEN the diaPriceOracle returns the price with WBTC eight decimals",
+        "AND WHEN asking for a USDC (6 decimal) price denominated in WBTC, THEN the diaPriceOracle returns the price with WAD precision",
         async() => {
-          expect(await diaPriceOracle.getPrice(setup.usdc.address, setup.wbtc.address)).to.eq("1932");
+          expect(await diaPriceOracle.getPrice(setup.usdc.address, setup.wbtc.address)).to.eq(inverse(btcPriceInWad));
       });
     });
   });
@@ -190,7 +199,7 @@ describe("DIAPriceOracle", () => {
       before(async () =>  {
         await diaPriceOracle.addPair(setup.weth.address, setup.usdc.address, identifier);
         // Price of ETH right now, as returned by the dia oracle
-        await diaOracle.updateCoinInfo(identifier, identifier, "180322583", 0, Date.now().toString());
+        await diaOracle.updateCoinInfo(identifier, identifier, ethPriceWithDiaDecimals, 0, Date.now().toString());
       });
       it("THEN the identifier for B/A is the same AND the inverse flag is on", async () => {
         const result = await diaPriceOracle.getPriceIdentifier(setup.usdc.address, setup.weth.address);
@@ -200,7 +209,7 @@ describe("DIAPriceOracle", () => {
 
       it("AND WHEN asking for the B/A pricefeed, THEN it should provide it", async() => {
         // 1 usdc denominated in eth
-        expect(await diaPriceOracle.getPrice(setup.usdc.address, setup.weth.address)).to.eq("554561710110374");
+        expect(await diaPriceOracle.getPrice(setup.usdc.address, setup.weth.address)).to.eq(inverse(ethPriceInWad));
       });
     });
   });
