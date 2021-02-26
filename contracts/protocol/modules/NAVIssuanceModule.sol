@@ -28,6 +28,7 @@ import { SignedSafeMath } from "@openzeppelin/contracts/math/SignedSafeMath.sol"
 
 import { AddressArrayUtils } from "../../lib/AddressArrayUtils.sol";
 import { IController } from "../../interfaces/IController.sol";
+import { ISetValuer } from "../../interfaces/ISetValuer.sol";
 import { INAVIssuanceHook } from "../../interfaces/INAVIssuanceHook.sol";
 import { Invoke } from "../lib/Invoke.sol";
 import { ISetToken } from "../../interfaces/ISetToken.sol";
@@ -114,6 +115,7 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
     struct NAVIssuanceSettings {
         INAVIssuanceHook managerIssuanceHook;      // Issuance hook configurations
         INAVIssuanceHook managerRedemptionHook;    // Redemption hook configurations
+        ISetValuer setValuer;
         address[] reserveAssets;                       // Allowed reserve assets - Must have a price enabled with the price oracle
         address feeRecipient;                          // Manager fee recipient
         uint256[2] managerFees;                        // Manager fees. 0 index is issue and 1 index is redeem fee (0.01% = 1e14, 1% = 1e16)

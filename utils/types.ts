@@ -35,6 +35,7 @@ export interface AirdropSettings {
 export interface NAVIssuanceSettings {
   managerIssuanceHook: Address;
   managerRedemptionHook: Address;
+  setValuer: Address;
   reserveAssets: Address[];
   feeRecipient: Address;
   managerFees: [BigNumber, BigNumber];

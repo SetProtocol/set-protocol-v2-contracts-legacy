@@ -129,6 +129,7 @@ describe("NavIssuanceModule", () => {
       subjectNAVIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -358,6 +359,7 @@ describe("NavIssuanceModule", () => {
         {
           managerIssuanceHook,
           managerRedemptionHook,
+          setValuer: ADDRESS_ZERO,
           reserveAssets,
           feeRecipient: managerFeeRecipient,
           managerFees,
@@ -433,6 +435,7 @@ describe("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -491,6 +494,7 @@ describe("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -551,6 +555,7 @@ describe("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -610,6 +615,7 @@ describe("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -674,6 +680,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
@@ -753,6 +760,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
@@ -837,6 +845,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
@@ -943,6 +952,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
@@ -1078,6 +1088,7 @@ describe("NavIssuanceModule", () => {
         navIssuanceSettings = {
           managerIssuanceHook,
           managerRedemptionHook,
+          setValuer: ADDRESS_ZERO,
           reserveAssets,
           feeRecipient: managerFeeRecipient,
           managerFees,
@@ -1150,7 +1161,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have deposited the reserve asset into the SetToken", async () => {
           const preIssueUSDCBalance = await setup.usdc.balanceOf(setToken.address);
-          
+
           await subject();
 
           const postIssueUSDCBalance = await setup.usdc.balanceOf(setToken.address);
@@ -1160,7 +1171,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have updated the reserve asset position correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1184,7 +1195,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1246,7 +1257,7 @@ describe("NavIssuanceModule", () => {
 
           it("should have deposited the reserve asset into the SetToken", async () => {
             const preIssueUSDCBalance = await setup.usdc.balanceOf(setToken.address);
-            
+
             await subject();
 
             const postIssueUSDCBalance = await setup.usdc.balanceOf(setToken.address);
@@ -1257,7 +1268,7 @@ describe("NavIssuanceModule", () => {
 
           it("should have updated the reserve asset position correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -1281,7 +1292,7 @@ describe("NavIssuanceModule", () => {
           it("should have updated the position multiplier correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
             const preIssuePositionMultiplier = await setToken.positionMultiplier();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -1318,7 +1329,7 @@ describe("NavIssuanceModule", () => {
 
           it("should have updated the reserve asset position correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -1342,7 +1353,7 @@ describe("NavIssuanceModule", () => {
           it("should have updated the position multiplier correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
             const preIssuePositionMultiplier = await setToken.positionMultiplier();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -1467,7 +1478,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have deposited the reserve asset into the SetToken", async () => {
           const preIssueUSDCBalance = await setup.usdc.balanceOf(setToken.address);
-          
+
           await subject();
 
           const postIssueUSDCBalance = await setup.usdc.balanceOf(setToken.address);
@@ -1483,7 +1494,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have updated the reserve asset position correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1507,7 +1518,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1623,6 +1634,7 @@ describe("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
+          setValuer: ADDRESS_ZERO,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
@@ -1690,7 +1702,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have deposited WETH into the SetToken", async () => {
           const preIssueWETHBalance = await setup.weth.balanceOf(setToken.address);
-          
+
           await subject();
 
           const postIssueWETHBalance = await setup.weth.balanceOf(setToken.address);
@@ -1700,7 +1712,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have updated the reserve asset position correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1723,7 +1735,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1776,7 +1788,7 @@ describe("NavIssuanceModule", () => {
 
           it("should have updated the reserve asset position correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -1800,7 +1812,7 @@ describe("NavIssuanceModule", () => {
           it("should have updated the position multiplier correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
             const preIssuePositionMultiplier = await setToken.positionMultiplier();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -1916,7 +1928,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have deposited the reserve asset into the SetToken", async () => {
           const preIssueWETHBalance = await setup.weth.balanceOf(setToken.address);
-          
+
           await subject();
 
           const postIssueWETHBalance = await setup.weth.balanceOf(setToken.address);
@@ -1932,7 +1944,7 @@ describe("NavIssuanceModule", () => {
 
         it("should have updated the reserve asset position correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -1956,7 +1968,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2038,6 +2050,7 @@ describe("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
+          setValuer: ADDRESS_ZERO,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
@@ -2090,7 +2103,7 @@ describe("NavIssuanceModule", () => {
         it("should reduce the SetToken supply", async () => {
           const previousSupply = await setToken.totalSupply();
           const preRedeemBalance = await setToken.balanceOf(owner.address);
-          
+
           await subject();
 
           const currentSupply = await setToken.totalSupply();
@@ -2104,7 +2117,7 @@ describe("NavIssuanceModule", () => {
             subjectSetToken,
             subjectReserveAsset
           );
-          
+
           await subject();
 
           const postIssueUSDCBalance = await setup.usdc.balanceOf(recipient.address);
@@ -2125,7 +2138,7 @@ describe("NavIssuanceModule", () => {
             subjectSetToken,
             subjectReserveAsset
           );
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2152,7 +2165,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2191,7 +2204,7 @@ describe("NavIssuanceModule", () => {
           it("should reduce the SetToken supply", async () => {
             const previousSupply = await setToken.totalSupply();
             const preRedeemBalance = await setToken.balanceOf(owner.address);
-            
+
             await subject();
 
             const currentSupply = await setToken.totalSupply();
@@ -2205,7 +2218,7 @@ describe("NavIssuanceModule", () => {
               subjectSetToken,
               subjectReserveAsset
             );
-            
+
             await subject();
 
             const postIssueUSDCBalance = await setup.usdc.balanceOf(recipient.address);
@@ -2226,7 +2239,7 @@ describe("NavIssuanceModule", () => {
               subjectSetToken,
               subjectReserveAsset
             );
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -2252,7 +2265,7 @@ describe("NavIssuanceModule", () => {
           it("should have updated the position multiplier correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
             const preIssuePositionMultiplier = await setToken.positionMultiplier();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -2294,7 +2307,7 @@ describe("NavIssuanceModule", () => {
               subjectSetToken,
               subjectReserveAsset
             );
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -2321,7 +2334,7 @@ describe("NavIssuanceModule", () => {
           it("should have updated the position multiplier correctly", async () => {
             const previousSetTokenSupply = await setToken.totalSupply();
             const preIssuePositionMultiplier = await setToken.positionMultiplier();
-            
+
             await subject();
 
             const currentSetTokenSupply = await setToken.totalSupply();
@@ -2529,12 +2542,6 @@ describe("NavIssuanceModule", () => {
           const protocolFeeRecipientAddress = await setup.controller.feeRecipient();
           const preRedeemProtocolFeeRecipientBalance = await setup.usdc.balanceOf(protocolFeeRecipientAddress);
 
-          // Get SetToken valuation
-          const setTokenValuation = await setup.setValuer.calculateSetTokenValuation(
-            subjectSetToken,
-            subjectReserveAsset
-          );
-
           await subject();
 
           // Calculate the redeemed reserve asset amount
@@ -2636,6 +2643,7 @@ describe("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
+          setValuer: ADDRESS_ZERO,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
@@ -2686,7 +2694,7 @@ describe("NavIssuanceModule", () => {
         it("should reduce the SetToken supply", async () => {
           const previousSupply = await setToken.totalSupply();
           const preRedeemBalance = await setToken.balanceOf(owner.address);
-          
+
           await subject();
 
           const currentSupply = await setToken.totalSupply();
@@ -2702,7 +2710,7 @@ describe("NavIssuanceModule", () => {
             setup.weth.address
           );
           const preIssueETHBalance = await provider.getBalance(recipient.address);
-          
+
           await subject();
 
           const postIssueETHBalance = await provider.getBalance(recipient.address);
@@ -2723,7 +2731,7 @@ describe("NavIssuanceModule", () => {
             subjectSetToken,
             setup.weth.address
           );
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2749,7 +2757,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2878,7 +2886,7 @@ describe("NavIssuanceModule", () => {
         it("should reduce the SetToken supply", async () => {
           const previousSupply = await setToken.totalSupply();
           const preRedeemBalance = await setToken.balanceOf(owner.address);
-          
+
           await subject();
 
           const currentSupply = await setToken.totalSupply();
@@ -2894,7 +2902,7 @@ describe("NavIssuanceModule", () => {
             setup.weth.address
           );
           const preIssueETHBalance = await provider.getBalance(recipient.address);
-          
+
           await subject();
 
           const postIssueETHBalance = await provider.getBalance(recipient.address);
@@ -2915,7 +2923,7 @@ describe("NavIssuanceModule", () => {
             subjectSetToken,
             setup.weth.address
           );
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2941,7 +2949,7 @@ describe("NavIssuanceModule", () => {
         it("should have updated the position multiplier correctly", async () => {
           const previousSetTokenSupply = await setToken.totalSupply();
           const preIssuePositionMultiplier = await setToken.positionMultiplier();
-          
+
           await subject();
 
           const currentSetTokenSupply = await setToken.totalSupply();
@@ -2965,12 +2973,6 @@ describe("NavIssuanceModule", () => {
           // Get starting balance of the protocol fee recipient
           const protocolFeeRecipientAddress = await setup.controller.feeRecipient();
           const preRedeemProtocolFeeRecipientBalance = await setup.weth.balanceOf(protocolFeeRecipientAddress);
-
-          // Get SetToken valuation
-          const setTokenValuation = await setup.setValuer.calculateSetTokenValuation(
-            subjectSetToken,
-            setup.weth.address
-          );
 
           await subject();
 
@@ -3033,6 +3035,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
