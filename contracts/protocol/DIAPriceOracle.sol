@@ -1,27 +1,33 @@
 pragma solidity 0.6.10;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { DIAOracle } from "../../external/contracts/DIAOracle.sol";
+import { IPriceOracle } from "../interfaces/IPriceOracle.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
  * @title DIAPriceOracle
  *
- * Contract that returns the price for any given asset pair. Price is retrieved either directly from an oracle,
- * calculated using common asset pairs, or uses external data to calculate price.
+ * Contract that returns the price for any given asset pair. Price is retrieved directly from a DIA oracle.
  * Note: Prices are returned in preciseUnits (i.e. 18 decimals of precision)
  */
-contract DIAPriceOracle is Ownable {
-    // Token address of the bridge asset that prices are derived from if the specified pair price is missing, required by the interface
+contract DIAPriceOracle is Ownable, IPriceOracle {
     using SafeMath for uint256;
     // DIA oracle returns 5 decimals, and the result requires 18
     uint public constant DECIMAL_CORRECTION = 10**13;
     uint public constant WAD = 10**18;
-    address public immutable masterQuoteAsset;
+
+    /* ============ State Variables ============ */
+
+    address public override immutable masterQuoteAsset;
     DIAOracle public immutable underlyingOracle;
     mapping (address => mapping (address => string)) private  priceIdentifiers;
 
+    /* ============ Events ============ */
+
     event PairAdded(address indexed _assetOne, address indexed _assetTwo, string identifier, string previous);
     event PairRemoved(address indexed _assetOne, address indexed _assetTwo, string identifier);
+
+    /* ============ Constructor ============ */
 
     constructor( address _masterQuoteAsset, address _underlyingOracle) public {
       masterQuoteAsset =_masterQuoteAsset;
@@ -29,11 +35,12 @@ contract DIAPriceOracle is Ownable {
     }
 
     /* ============ External Functions ============ */
-    // required by the interface
-    function getPrice(address _assetOne, address _assetTwo) external view returns (uint256) {
+
+    function getPrice(address _assetOne, address _assetTwo) external override view returns (uint256) {
         uint256 price;
         (bool inverse, string memory identifier) = getPriceIdentifier(_assetOne,_assetTwo);
         (price,,,) = underlyingOracle.getCoinInfo(identifier);
+
         if (inverse) {
           return WAD.mul(WAD).div(price.mul(DECIMAL_CORRECTION));
         } else {
