@@ -31,6 +31,7 @@ export { ModuleBaseMock } from "../../typechain/ModuleBaseMock";
 export { ModuleIssuanceHookMock } from "../../typechain/ModuleIssuanceHookMock";
 export { NAVIssuanceCaller } from "../../typechain/NAVIssuanceCaller";
 export { NAVIssuanceHookMock } from "../../typechain/NAVIssuanceHookMock";
+export { CustomSetValuerMock } from "../../typechain/CustomSetValuerMock";
 export { NavIssuanceModule } from "../../typechain/NavIssuanceModule";
 export { OneInchExchangeAdapter } from "../../typechain/OneInchExchangeAdapter";
 export { OneInchExchangeMock } from "../../typechain/OneInchExchangeMock";

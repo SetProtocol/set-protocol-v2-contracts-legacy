@@ -38,7 +38,6 @@ import { Position } from "../lib/Position.sol";
 import { PreciseUnitMath } from "../../lib/PreciseUnitMath.sol";
 import { ResourceIdentifier } from "../lib/ResourceIdentifier.sol";
 
-
 /**
  * @title NavIssuanceModule
  * @author Set Protocol
@@ -955,9 +954,10 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
         uint256 premiumPercentage = _getIssuePremium(_setToken, _reserveAsset, _netReserveFlows);
         uint256 premiumValue = _netReserveFlows.preciseMul(premiumPercentage);
 
+        // If the set manager provided a custom valuer at initialization time, use it. Otherwise get it from the controller
         // Get valuation of the SetToken with the quote asset as the reserve asset. Returns value in precise units (1e18)
         // Reverts if price is not found
-        uint256 setTokenValuation = controller.getSetValuer().calculateSetTokenValuation(_setToken, _reserveAsset);
+        uint256 setTokenValuation = _getSetValuer(_setToken).calculateSetTokenValuation(_setToken, _reserveAsset);
 
         // Get reserve asset decimals
         uint256 reserveAssetDecimals = ERC20(_reserveAsset).decimals();
@@ -980,7 +980,7 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
     {
         // Get valuation of the SetToken with the quote asset as the reserve asset. Returns value in precise units (10e18)
         // Reverts if price is not found
-        uint256 setTokenValuation = controller.getSetValuer().calculateSetTokenValuation(_setToken, _reserveAsset);
+        uint256 setTokenValuation = _getSetValuer(_setToken).calculateSetTokenValuation(_setToken, _reserveAsset);
 
         uint256 totalRedeemValueInPreciseUnits = _setTokenQuantity.preciseMul(setTokenValuation);
         // Get reserve asset decimals
@@ -1113,5 +1113,10 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
         if (address(preRedeemHook) != address(0)) {
             preRedeemHook.invokePreRedeemHook(_setToken, _setQuantity, _caller, _to);
         }
+    }
+
+    function _getSetValuer(ISetToken _setToken) internal view returns (ISetValuer) {
+        ISetValuer customValuer =  navIssuanceSettings[_setToken].setValuer;
+        return address(customValuer) == address(0) ? controller.getSetValuer() : customValuer;
     }
 }

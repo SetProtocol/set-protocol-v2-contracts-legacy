@@ -5,7 +5,7 @@ import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Address, NAVIssuanceSettings } from "@utils/types";
 import { Account } from "@utils/test/types";
 import { ONE, TWO, THREE, ZERO, ADDRESS_ZERO } from "@utils/constants";
-import { ManagerIssuanceHookMock, NAVIssuanceHookMock, NavIssuanceModule, SetToken } from "@utils/contracts";
+import { ManagerIssuanceHookMock, NAVIssuanceHookMock, NavIssuanceModule, SetToken, CustomSetValuerMock } from "@utils/contracts";
 import DeployHelper from "@utils/deploys";
 import {
   bitcoin,
@@ -3325,6 +3325,99 @@ describe("NavIssuanceModule", () => {
         });
       });
     }
+  });
+  context("custom set valuer", () => {
+    let setValuerMock: CustomSetValuerMock;
+    let setToken: SetToken;
+    // set valued at $400 by the regular set valuer
+    // which values ETH at 230 usd and usdc at 1 usd
+    const units = [ether(1), usdc(170)];
+    const configure = (useValuerMock: boolean) => async () => {
+      setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+      // set valued at $500 by the custom set valuer
+      // which values ETH at 200 usd and usdc at 1 usd
+      await setValuerMock.setValuation(setup.usdc.address, ether(370));
+      await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
+
+      const navIssuanceSettings: NAVIssuanceSettings = {
+        managerIssuanceHook: ADDRESS_ZERO,
+        managerRedemptionHook: ADDRESS_ZERO,
+        reserveAssets: [ setup.usdc.address, setup.weth.address ],
+        feeRecipient: await getRandomAddress(),
+        setValuer: useValuerMock ? setValuerMock.address : ADDRESS_ZERO,
+        managerFees: [BigNumber.from("0"), BigNumber.from("0")],
+        maxManagerFee: BigNumber.from("0"),
+        premiumPercentage: BigNumber.from("0"),
+        maxPremiumPercentage: BigNumber.from("0"),
+        minSetTokenSupply: ether(1),
+      };
+      setToken = await setup.createSetToken(
+        [setup.weth.address, setup.usdc.address],
+        units,
+        [setup.issuanceModule.address, navIssuanceModule.address]
+      );
+      await setup.issuanceModule.initialize(setToken.address, ADDRESS_ZERO);
+      await setup.usdc.approve(navIssuanceModule.address, ether(1000));
+      await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+      await setup.issuanceModule.issue(setToken.address, ether(2), owner.address);
+    };
+
+    describe("GIVEN a set token with a custom set valuer", () => {
+      before(configure(true));
+      it("THEN the custom set valuer can be retrieved", async () => {
+        const settings = await navIssuanceModule.navIssuanceSettings(setToken.address);
+        expect(settings.setValuer).to.eq(setValuerMock.address);
+      });
+      it("WHEN asking for the expected issue amount, the price from the custom set valuer is used", async() => {
+        const issueAmountFrom370usdc = await navIssuanceModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.usdc.address, usdc(370));
+        expect(issueAmountFrom370usdc).to.eq(ether("1"));
+        const issueAmountFrom1weth = await navIssuanceModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.weth.address, ether(1));
+        expect(issueAmountFrom1weth).to.eq(ether("0.54054054054054054"));
+      });
+      it("WHEN asking for the expected redeem amount, the price from the custom set valuer is used", async() => {
+        const usdcRedeemAmountFrom1Set = await navIssuanceModule.getExpectedReserveRedeemQuantity(setToken.address, setup.usdc.address, ether(1));
+        expect(usdcRedeemAmountFrom1Set).to.eq(usdc(370));
+        const wethRedeemAmountFrom1Set = await navIssuanceModule.getExpectedReserveRedeemQuantity(setToken.address, setup.weth.address, ether(1));
+        expect(wethRedeemAmountFrom1Set).to.eq(ether("1.85"));
+      });
+
+      describe("GIVEN a small NAV issue", () => {
+        let oldBalance: BigNumber;
+        before(async() => {
+          oldBalance = await setToken.balanceOf(owner.address);
+          await navIssuanceModule.issue(setToken.address, setup.usdc.address, usdc(481), ether("1.3"), owner.address);
+        });
+        it("THEN the expected amount given the custom valuer price is minted", async() => {
+          const newBalance: BigNumber = await setToken.balanceOf(owner.address);
+          expect(newBalance.sub(oldBalance)).to.eq(ether("1.3"));
+        });
+
+        describe("GIVEN a small NAV redeem", () => {
+          before(async() => {
+            oldBalance = await setToken.balanceOf(owner.address);
+            await navIssuanceModule.redeem(setToken.address, setup.usdc.address, ether("1.3"), usdc(481), owner.address);
+          });
+          it("THEN the expected amount given the custom valuer price is redeemed", async() => {
+            const newBalance: BigNumber = await setToken.balanceOf(owner.address);
+            expect(oldBalance.sub(newBalance)).to.eq(ether("1.3"));
+          });
+        });
+      });
+    });
+
+    describe("GIVEN a set token with the set valuer address set to zero", () => {
+      before(configure(false));
+      it("THEN the set valuer address returns zero", async() => {
+        const settings = await navIssuanceModule.navIssuanceSettings(setToken.address);
+        expect(settings.setValuer).to.eq(ADDRESS_ZERO);
+      });
+      it("WHEN asking for the expected issue amount, the price from the  default set valuer is used", async() => {
+        const issueAmountFrom200usdc = await navIssuanceModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.usdc.address, usdc(200));
+        expect(issueAmountFrom200usdc).to.eq(ether("0.5"));
+        const issueAmountFrom1weth = await navIssuanceModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.weth.address, ether(1));
+        expect(issueAmountFrom1weth).to.eq(ether("0.5750"));
+      });
+    });
   });
 });
 
