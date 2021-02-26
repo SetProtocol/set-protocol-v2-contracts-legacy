@@ -15,6 +15,9 @@ contract DIAPriceOracle is Ownable {
     DIAOracle public immutable underlyingOracle;
     mapping (address => mapping (address => string)) private  priceIdentifiers;
 
+    event PairAdded(address indexed _assetOne, address indexed _assetTwo, string identifier, string previous);
+    event PairRemoved(address indexed _assetOne, address indexed _assetTwo, string identifier);
+
     constructor( address _masterQuoteAsset, address _underlyingOracle) public {
       masterQuoteAsset =_masterQuoteAsset;
       underlyingOracle = DIAOracle(_underlyingOracle);
@@ -29,7 +32,15 @@ contract DIAPriceOracle is Ownable {
     }
 
     function addPair(address _assetOne, address _assetTwo, string memory identifier) onlyOwner external {
+      emit PairAdded(_assetOne, _assetTwo, identifier, priceIdentifiers[_assetOne][_assetTwo]);
       priceIdentifiers[_assetOne][_assetTwo] = identifier;
+    }
+
+    function removePair(address _assetOne, address _assetTwo) onlyOwner external {
+      string storage identifier = priceIdentifiers[_assetOne][_assetTwo];
+      require(bytes(identifier).length != 0,"Pair does not exist");
+      emit PairRemoved(_assetOne, _assetTwo, identifier);
+      delete(priceIdentifiers[_assetOne][_assetTwo]);
     }
 
     function getPriceIdentifier (address _assetOne, address _assetTwo) public view returns (string memory identifier){
