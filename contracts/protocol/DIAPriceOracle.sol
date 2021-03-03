@@ -1,6 +1,6 @@
 pragma solidity 0.6.10;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { DIAOracle } from "../../external/contracts/DIAOracle.sol";
+import { IDIAOracle } from "../interfaces/external/IDIAOracle.sol";
 import { IPriceOracle } from "../interfaces/IPriceOracle.sol";
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 
@@ -13,13 +13,13 @@ import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 contract DIAPriceOracle is Ownable, IPriceOracle {
     using SafeMath for uint256;
     // DIA oracle returns 5 decimals, and the result requires 18
-    uint public constant DECIMAL_CORRECTION = 10**13;
-    uint public constant WAD = 10**18;
+    uint256 public constant DECIMAL_CORRECTION = 10**13;
+    uint256 public constant WAD = 10**18;
 
     /* ============ State Variables ============ */
 
     address public override immutable masterQuoteAsset;
-    DIAOracle public immutable underlyingOracle;
+    IDIAOracle public immutable underlyingOracle;
     mapping (address => mapping (address => string)) private  priceIdentifiers;
 
     /* ============ Events ============ */
@@ -31,10 +31,17 @@ contract DIAPriceOracle is Ownable, IPriceOracle {
 
     constructor( address _masterQuoteAsset, address _underlyingOracle) public {
       masterQuoteAsset =_masterQuoteAsset;
-      underlyingOracle = DIAOracle(_underlyingOracle);
+      underlyingOracle = IDIAOracle(_underlyingOracle);
     }
 
     /* ============ External Functions ============ */
+
+    /**
+    * Get the price from the DIAOracle, and return it with the precision
+    * expected by the Set valuer.
+    * If the direct price isn't available, the inverse to it is queried.
+    * Reverts if there is no price identifier registered for that pair
+    */
 
     function getPrice(address _assetOne, address _assetTwo) external override view returns (uint256) {
         uint256 price;
@@ -48,10 +55,22 @@ contract DIAPriceOracle is Ownable, IPriceOracle {
         }
     }
 
+    /**
+    * Owner-only function to add a price identifier to call the DIAOracle with,
+    * when in need for a price for the pair determined by (_assetOne,
+    * _assetTwo)
+    * If the pair is already registered, it's overwritten.
+    */
+
     function addPair(address _assetOne, address _assetTwo, string memory identifier) onlyOwner external {
       emit PairAdded(_assetOne, _assetTwo, identifier, priceIdentifiers[_assetOne][_assetTwo]);
       priceIdentifiers[_assetOne][_assetTwo] = identifier;
     }
+
+    /**
+    * Owner-only function to remove support for an asset pair
+    * reverts if the pair isn't registered.
+    */
 
     function removePair(address _assetOne, address _assetTwo) onlyOwner external {
       string storage identifier = priceIdentifiers[_assetOne][_assetTwo];
@@ -59,6 +78,13 @@ contract DIAPriceOracle is Ownable, IPriceOracle {
       emit PairRemoved(_assetOne, _assetTwo, identifier);
       delete(priceIdentifiers[_assetOne][_assetTwo]);
     }
+    
+    /**
+    * Retrieves the price identifier (used to fetch the price from the DIA
+    * oracle)for an asset pair, and a flag indicating if the price is the
+    * inverse of what's desired. Reverts if no regular or inverse price
+    * identifier is found
+    */
 
     function getPriceIdentifier (address _assetOne, address _assetTwo) public view returns (bool inverse, string memory identifier){
         identifier = priceIdentifiers[_assetOne][_assetTwo];

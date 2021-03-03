@@ -31,7 +31,7 @@ import { ResourceIdentifier } from "./lib/ResourceIdentifier.sol";
 
 
 /**
- * @title SetValuer
+ * @title CustomOracleSetValuer
  * @author Set Protocol
  *
  * Contract that returns the valuation of SetTokens using price oracle data used in contracts
@@ -50,7 +50,7 @@ contract CustomOracleSetValuer {
     /* ============ State Variables ============ */
 
     // Instance of the priceOracle contract
-    IPriceOracle public priceOracle;
+    IPriceOracle public immutable priceOracle;
 
     /* ============ Constructor ============ */
 

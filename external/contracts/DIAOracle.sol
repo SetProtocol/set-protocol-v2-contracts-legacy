@@ -1,6 +1,7 @@
-pragma solidity ^0.6.6;
+pragma solidity 0.6.10;
+import { IDIAOracle } from "../../contracts/interfaces/external/IDIAOracle.sol";
 
-contract DIAOracle {
+contract DIAOracle is IDIAOracle{
 	address owner;
 
 	struct CoinInfo {
@@ -29,7 +30,7 @@ contract DIAOracle {
 		owner = newOwner;
 	}
     
-	function updateCoinInfo(string memory name, string memory symbol, uint256 newPrice, uint256 newSupply, uint256 newTimestamp) public {
+	function updateCoinInfo(string memory name, string memory symbol, uint256 newPrice, uint256 newSupply, uint256 newTimestamp) public override {
 		require(msg.sender == owner);
 		diaOracles[name] = (CoinInfo(newPrice, newSupply, newTimestamp, symbol));
 		emit newCoinInfo(name, symbol, newPrice, newSupply, newTimestamp);

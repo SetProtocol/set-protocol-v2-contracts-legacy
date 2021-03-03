@@ -40,7 +40,7 @@ import { ResourceIdentifier } from "../lib/ResourceIdentifier.sol";
 
 /**
  * @title CustomOracleNavIssuanceModule
- * @author Set Protocol
+ * @author SCIFI
  *
  * Module that enables issuance and redemption with any valid ERC20 token or ETH if allowed by the manager. Sender receives
  * a proportional amount of SetTokens on issuance or ERC20 token on redemption based on the calculated net asset value using
@@ -1116,7 +1116,7 @@ contract CustomOracleNavIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * If a custom set valuer has been configured, use it. Otherwise fetch the default one form the
+     * If a custom set valuer has been configured, use it. Otherwise fetch the default one from the
      * controller.
      */
     function _getSetValuer(ISetToken _setToken) internal view returns (ISetValuer) {
