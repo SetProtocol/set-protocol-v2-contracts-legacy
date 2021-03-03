@@ -19,11 +19,11 @@
 pragma solidity 0.6.10;
 pragma experimental "ABIEncoderV2";
 
-import { ISetValuer } from "../../../interfaces/ISetValuer.sol";
-import { ISetToken } from "../../../interfaces/ISetToken.sol";
+import { ISetValuer } from "../../interfaces/ISetValuer.sol";
+import { ISetToken } from "../../interfaces/ISetToken.sol";
 
 /**
- * @title SetValuer
+ * @title CustomSetValuerMock
  * @author Set Protocol
  *
  * Contract that returns a mocked valuation for a set.
@@ -32,9 +32,6 @@ contract CustomSetValuerMock is ISetValuer {
     /* ============ State Variables ============ */
 
     mapping (address => uint256) valuation;
-
-    /* ============ Constructor ============ */
-    constructor() public { }
 
     /* ============ External Functions ============ */
     function setValuation(address _quoteAsset, uint256 _valuation) external {

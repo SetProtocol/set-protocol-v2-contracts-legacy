@@ -112,9 +112,9 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
     /* ============ Structs ============ */
 
     struct NAVIssuanceSettings {
-        INAVIssuanceHook managerIssuanceHook;      // Issuance hook configurations
-        INAVIssuanceHook managerRedemptionHook;    // Redemption hook configurations
-        ISetValuer setValuer;
+        INAVIssuanceHook managerIssuanceHook;          // Issuance hook configurations
+        INAVIssuanceHook managerRedemptionHook;        // Redemption hook configurations
+        ISetValuer setValuer;                          // Optional custom set valuer. If address(0) is provided, fetch the default one from the controller
         address[] reserveAssets;                       // Allowed reserve assets - Must have a price enabled with the price oracle
         address feeRecipient;                          // Manager fee recipient
         uint256[2] managerFees;                        // Manager fees. 0 index is issue and 1 index is redeem fee (0.01% = 1e14, 1% = 1e16)
@@ -1115,6 +1115,10 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
+    /**
+     * If a custom set valuer has been configured, use it. Otherwise fetch the default one form the
+     * controller.
+     */
     function _getSetValuer(ISetToken _setToken) internal view returns (ISetValuer) {
         ISetValuer customValuer =  navIssuanceSettings[_setToken].setValuer;
         return address(customValuer) == address(0) ? controller.getSetValuer() : customValuer;
