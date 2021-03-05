@@ -99,6 +99,7 @@ describe("NavIssuanceModule", () => {
     let premiumPercentage: BigNumber;
     let maxPremiumPercentage: BigNumber;
     let minSetTokenSupply: BigNumber;
+    let setValuerAddress: Address;
 
     let subjectNAVIssuanceSettings: NAVIssuanceSettings;
     let subjectSetToken: Address;
@@ -129,7 +130,7 @@ describe("NavIssuanceModule", () => {
       subjectNAVIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
-        setValuer: ADDRESS_ZERO,
+        setValuer: setValuerAddress,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -147,41 +148,56 @@ describe("NavIssuanceModule", () => {
         subjectNAVIssuanceSettings
       );
     }
-
-    it("should set the correct NAV issuance settings", async () => {
-      await subject();
-
-      const navIssuanceSettings: any = await navIssuanceModule.navIssuanceSettings(subjectSetToken);
-      const retrievedReserveAssets = await navIssuanceModule.getReserveAssets(subjectSetToken);
-      const managerIssueFee = await navIssuanceModule.getManagerFee(subjectSetToken, ZERO);
-      const managerRedeemFee = await navIssuanceModule.getManagerFee(subjectSetToken, ONE);
-
-      expect(JSON.stringify(retrievedReserveAssets)).to.eq(JSON.stringify(reserveAssets));
-      expect(navIssuanceSettings.managerIssuanceHook).to.eq(managerIssuanceHook);
-      expect(navIssuanceSettings.managerRedemptionHook).to.eq(managerRedemptionHook);
-      expect(navIssuanceSettings.feeRecipient).to.eq(managerFeeRecipient);
-      expect(managerIssueFee).to.eq(managerFees[0]);
-      expect(managerRedeemFee).to.eq(managerFees[1]);
-      expect(navIssuanceSettings.maxManagerFee).to.eq(maxManagerFee);
-      expect(navIssuanceSettings.premiumPercentage).to.eq(premiumPercentage);
-      expect(navIssuanceSettings.maxPremiumPercentage).to.eq(maxPremiumPercentage);
-      expect(navIssuanceSettings.minSetTokenSupply).to.eq(minSetTokenSupply);
+    context("when using a custom valuer", () => {
+      before(async () => {
+        const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+        setValuerAddress = setValuerMock.address;
+      });
+      it("the set valuer address should be present in the settings", async () => {
+        await subject();
+        const navIssuanceSettings: any = await navIssuanceModule.navIssuanceSettings(subjectSetToken);
+        expect(navIssuanceSettings.setValuer).to.eq(setValuerAddress);
+      });
     });
 
-    it("should enable the Module on the SetToken", async () => {
-      await subject();
+    context("when using the default valuer", () => {
+      before(async() => {setValuerAddress = ADDRESS_ZERO; });
+      it("should set the correct NAV issuance settings", async () => {
+        await subject();
 
-      const isModuleEnabled = await setToken.isInitializedModule(navIssuanceModule.address);
-      expect(isModuleEnabled).to.eq(true);
-    });
+        const navIssuanceSettings: any = await navIssuanceModule.navIssuanceSettings(subjectSetToken);
+        const retrievedReserveAssets = await navIssuanceModule.getReserveAssets(subjectSetToken);
+        const managerIssueFee = await navIssuanceModule.getManagerFee(subjectSetToken, ZERO);
+        const managerRedeemFee = await navIssuanceModule.getManagerFee(subjectSetToken, ONE);
 
-    it("should properly set reserve assets mapping", async () => {
-      await subject();
+        expect(JSON.stringify(retrievedReserveAssets)).to.eq(JSON.stringify(reserveAssets));
+        expect(navIssuanceSettings.managerIssuanceHook).to.eq(managerIssuanceHook);
+        expect(navIssuanceSettings.managerRedemptionHook).to.eq(managerRedemptionHook);
+        expect(navIssuanceSettings.setValuer).to.eq(ADDRESS_ZERO);
+        expect(navIssuanceSettings.feeRecipient).to.eq(managerFeeRecipient);
+        expect(managerIssueFee).to.eq(managerFees[0]);
+        expect(managerRedeemFee).to.eq(managerFees[1]);
+        expect(navIssuanceSettings.maxManagerFee).to.eq(maxManagerFee);
+        expect(navIssuanceSettings.premiumPercentage).to.eq(premiumPercentage);
+        expect(navIssuanceSettings.maxPremiumPercentage).to.eq(maxPremiumPercentage);
+        expect(navIssuanceSettings.minSetTokenSupply).to.eq(minSetTokenSupply);
+      });
 
-      const isUsdcReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, setup.usdc.address);
-      const isWethReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, setup.weth.address);
-      expect(isUsdcReserveAsset).to.eq(true);
-      expect(isWethReserveAsset).to.eq(true);
+      it("should enable the Module on the SetToken", async () => {
+        await subject();
+
+        const isModuleEnabled = await setToken.isInitializedModule(navIssuanceModule.address);
+        expect(isModuleEnabled).to.eq(true);
+      });
+
+      it("should properly set reserve assets mapping", async () => {
+        await subject();
+
+        const isUsdcReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, setup.usdc.address);
+        const isWethReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, setup.weth.address);
+        expect(isUsdcReserveAsset).to.eq(true);
+        expect(isWethReserveAsset).to.eq(true);
+      });
     });
 
     describe("when the caller is not the SetToken manager", async () => {
@@ -651,15 +667,17 @@ describe("NavIssuanceModule", () => {
     let subjectReserveQuantity: BigNumber;
 
     let setToken: SetToken;
+    let setValuerAddress: Address;
+    let setValuerMock: CustomSetValuerMock;
     let managerFees: BigNumber[];
     let protocolDirectFee: BigNumber;
     let premiumPercentage: BigNumber;
 
     beforeEach(async () => {
       setToken = await setup.createSetToken(
-        [setup.weth.address],
-        [ether(1)],
-        [navIssuanceModule.address]
+        [setup.weth.address, setup.usdc.address],
+        [ether(1), usdc(1)],
+        [navIssuanceModule.address, setup.issuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -680,7 +698,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
-        setValuer: ADDRESS_ZERO,
+        setValuer: setValuerAddress,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
@@ -693,6 +711,10 @@ describe("NavIssuanceModule", () => {
         setToken.address,
         navIssuanceSettings
       );
+      await setup.weth.approve(setup.controller.address, ether(100));
+      await setup.usdc.approve(setup.controller.address, usdc(1000000));
+      await setup.issuanceModule.connect(owner.wallet).initialize(setToken.address, ADDRESS_ZERO);
+      await setup.issuanceModule.connect(owner.wallet).issue(setToken.address, ether(10), owner.address);
 
       protocolDirectFee = ether(.02);
       await setup.controller.addFee(navIssuanceModule.address, TWO, protocolDirectFee);
@@ -701,27 +723,88 @@ describe("NavIssuanceModule", () => {
       await setup.controller.addFee(navIssuanceModule.address, ZERO, protocolManagerFee);
 
       subjectSetToken = setToken.address;
-      subjectReserveAsset = setup.usdc.address;
-      subjectReserveQuantity = ether(1);
     });
 
     async function subject(): Promise<any> {
       return navIssuanceModule.getExpectedSetTokenIssueQuantity(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
     }
 
-    it("should return the correct expected Set issue quantity", async () => {
-      const expectedSetTokenIssueQuantity = await getExpectedSetTokenIssueQuantity(
-        setToken,
-        setup.setValuer,
-        subjectReserveAsset,
-        usdc(1),
-        subjectReserveQuantity,
-        managerFees[0],
-        protocolDirectFee,
-        premiumPercentage
-      );
-      const returnedSetTokenIssueQuantity = await subject();
-      expect(expectedSetTokenIssueQuantity).to.eq(returnedSetTokenIssueQuantity);
+    context("with a custom set valuer", () => {
+      const usdcValuation: BigNumber = ether(370);
+      const wethValuation: BigNumber = ether(1.85);
+      before(async() => {
+        setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+        await setValuerMock.setValuation(setup.usdc.address, usdcValuation);
+        await setValuerMock.setValuation(setup.weth.address, wethValuation);
+        setValuerAddress = setValuerMock.address;
+      });
+
+      context("when issuing with usdc", () => {
+        before(() => {
+          subjectReserveAsset = setup.usdc.address;
+          subjectReserveQuantity = usdc(370);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const expectedSetTokenIssueQuantity  = await getExpectedSetTokenIssueQuantity(
+            setToken,
+            setValuerMock,
+            subjectReserveAsset,
+            usdc(1), // usdc base units
+            subjectReserveQuantity,
+            managerFees[0],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          );
+          const returnedSetTokenIssueQuantity = await subject();
+          expect(returnedSetTokenIssueQuantity).to.eq(expectedSetTokenIssueQuantity);
+        });
+      });
+
+      context("when issuing with weth", () => {
+        before(() => {
+          subjectReserveAsset = setup.weth.address;
+          subjectReserveQuantity = ether(1);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const expectedSetTokenIssueQuantity  = await getExpectedSetTokenIssueQuantity(
+            setToken,
+            setValuerMock,
+            subjectReserveAsset,
+            ether(1), // usdc base units
+            subjectReserveQuantity,
+            managerFees[0],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          );
+          const returnedSetTokenIssueQuantity = await subject();
+          expect(returnedSetTokenIssueQuantity).to.eq(expectedSetTokenIssueQuantity);
+        });
+      });
+    });
+
+    context("with the default valuer", () => {
+      before(async() => {
+        subjectReserveAsset = setup.usdc.address;
+        subjectReserveQuantity = ether(1);
+        setValuerAddress = ADDRESS_ZERO;
+      });
+      it("should return the correct expected Set issue quantity", async () => {
+
+        const expectedSetTokenIssueQuantity = await getExpectedSetTokenIssueQuantity(
+          setToken,
+          setup.setValuer,
+          subjectReserveAsset,
+          usdc(1),
+          subjectReserveQuantity,
+          managerFees[0],
+          protocolDirectFee,
+          premiumPercentage
+        );
+        const returnedSetTokenIssueQuantity = await subject();
+        expect(expectedSetTokenIssueQuantity).to.eq(returnedSetTokenIssueQuantity);
+      });
     });
   });
 
@@ -729,6 +812,7 @@ describe("NavIssuanceModule", () => {
     let subjectSetToken: Address;
     let subjectReserveAsset: Address;
     let subjectSetTokenQuantity: BigNumber;
+    let setValuerAddress: Address;
 
     let setToken: SetToken;
     let managerFees: BigNumber[];
@@ -760,7 +844,7 @@ describe("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
-        setValuer: ADDRESS_ZERO,
+        setValuer: setValuerAddress,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
@@ -787,29 +871,84 @@ describe("NavIssuanceModule", () => {
       await setup.controller.addFee(navIssuanceModule.address, ONE, protocolManagerFee);
 
       subjectSetToken = setToken.address;
-      subjectReserveAsset = setup.usdc.address;
-      subjectSetTokenQuantity = ether(1);
     });
 
     async function subject(): Promise<any> {
       return navIssuanceModule.getExpectedReserveRedeemQuantity(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
     }
 
-    it("should return the correct expected reserve asset redeem quantity", async () => {
-      const setTokenValuation = await setup.setValuer.calculateSetTokenValuation(
-        subjectSetToken,
-        subjectReserveAsset
-      );
-      const expectedRedeemQuantity = getExpectedReserveRedeemQuantity(
-        subjectSetTokenQuantity,
-        setTokenValuation,
-        usdc(1), // USDC base units
-        managerFees[1],
-        protocolDirectFee, // Protocol fee percentage
-        premiumPercentage
-      );
-      const returnedRedeemQuantity = await subject();
-      expect(expectedRedeemQuantity).to.eq(returnedRedeemQuantity);
+    context("with a custom set valuer", () => {
+      const usdcValuation: BigNumber = ether(370);
+      const wethValuation: BigNumber = ether(1.85);
+      before(async() => {
+        const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+        await setValuerMock.setValuation(setup.usdc.address, usdcValuation);
+        await setValuerMock.setValuation(setup.weth.address, wethValuation);
+        setValuerAddress = setValuerMock.address;
+      });
+
+      context("when redeming usdc", () => {
+        before(() => {
+          subjectReserveAsset = setup.usdc.address;
+          subjectSetTokenQuantity = ether(1);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const usdcRedeemAmountFrom1Set = await subject();
+          expect(usdcRedeemAmountFrom1Set).to.eq(getExpectedReserveRedeemQuantity(
+            subjectSetTokenQuantity,
+            usdcValuation,
+            usdc(1), // USDC base units
+            managerFees[1],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          ));
+        });
+      });
+
+      context("when redeming weth", () => {
+        before(() => {
+          subjectReserveAsset = setup.weth.address;
+          subjectSetTokenQuantity = ether(1);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const wethRedeemAmountFrom1Set = await subject();
+          expect(wethRedeemAmountFrom1Set).to.eq(getExpectedReserveRedeemQuantity(
+            subjectSetTokenQuantity,
+            wethValuation,
+            ether(1), // USDC base units
+            managerFees[1],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          ));
+        });
+      });
+    });
+
+    context("with the default set valuer", () => {
+      before(() => {
+        setValuerAddress = ADDRESS_ZERO;
+        subjectReserveAsset = setup.usdc.address;
+        subjectSetTokenQuantity = ether(1);
+      });
+
+      it("should return the correct expected reserve asset redeem quantity", async () => {
+        const setTokenValuation = await setup.setValuer.calculateSetTokenValuation(
+          subjectSetToken,
+          subjectReserveAsset
+        );
+        const expectedRedeemQuantity = getExpectedReserveRedeemQuantity(
+          subjectSetTokenQuantity,
+          setTokenValuation,
+          usdc(1), // USDC base units
+          managerFees[1],
+          protocolDirectFee, // Protocol fee percentage
+          premiumPercentage
+        );
+        const returnedRedeemQuantity = await subject();
+        expect(expectedRedeemQuantity).to.eq(returnedRedeemQuantity);
+      });
     });
   });
 
@@ -1058,6 +1197,7 @@ describe("NavIssuanceModule", () => {
     let subjectMinSetTokenReceived: BigNumber;
     let subjectTo: Account;
     let subjectCaller: Account;
+    let setValuerAddress: Address;
 
     let navIssuanceSettings: NAVIssuanceSettings;
     let managerIssuanceHook: Address;
@@ -1068,7 +1208,6 @@ describe("NavIssuanceModule", () => {
 
     context("when there are 4 components and reserve asset is USDC", async () => {
       beforeEach(async () => {
-        // Valued at 2000 USDC
         units = [ether(1), usdc(270), bitcoin(1).div(10), ether(600)];
         setToken = await setup.createSetToken(
           [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
@@ -1088,7 +1227,7 @@ describe("NavIssuanceModule", () => {
         navIssuanceSettings = {
           managerIssuanceHook,
           managerRedemptionHook,
-          setValuer: ADDRESS_ZERO,
+          setValuer: setValuerAddress,
           reserveAssets,
           feeRecipient: managerFeeRecipient,
           managerFees,
@@ -1122,9 +1261,34 @@ describe("NavIssuanceModule", () => {
         subjectCaller = owner;
       });
 
+      context("when using a custom valuer", () => {
+        before(async () => {
+          managerIssuanceHook = ADDRESS_ZERO;
+          // Set fees to 0
+          managerFees = [ether(0), ether(0)];
+          premiumPercentage = ether(0);
+          const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+          // set valued at $500 by the custom set valuer
+          // which values ETH at 200 usd and usdc at 1 usd
+          await setValuerMock.setValuation(setup.usdc.address, ether(370));
+          await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
+          setValuerAddress = setValuerMock.address;
+        });
+
+        const subject = () => navIssuanceModule.issue(setToken.address, setup.usdc.address, usdc(296), ether("0.8"), owner.address);
+
+        it("should use the custom valuer to compute the issue amount", async() => {
+          const oldBalance: BigNumber = await setToken.balanceOf(owner.address);
+          await subject();
+          const newBalance: BigNumber = await setToken.balanceOf(owner.address);
+          expect(newBalance.sub(oldBalance)).to.eq(ether("0.8"));
+        });
+      });
+
       context("when there are no fees and no issuance hooks", async () => {
         before(async () => {
           managerIssuanceHook = ADDRESS_ZERO;
+          setValuerAddress = ADDRESS_ZERO;
           // Set fees to 0
           managerFees = [ether(0), ether(0)];
           // Set premium percentage to 50 bps
@@ -1437,6 +1601,7 @@ describe("NavIssuanceModule", () => {
 
         before(async () => {
           managerIssuanceHook = ADDRESS_ZERO;
+          setValuerAddress = ADDRESS_ZERO;
           managerFees = [ether(0.1), ether(0.1)];
           premiumPercentage = ether(0.005);
         });
@@ -1563,6 +1728,7 @@ describe("NavIssuanceModule", () => {
 
         before(async () => {
           issuanceHookContract = await deployer.mocks.deployNavIssuanceHookMock();
+          setValuerAddress = ADDRESS_ZERO;
 
           managerIssuanceHook = issuanceHookContract.address;
         });
@@ -2021,6 +2187,7 @@ describe("NavIssuanceModule", () => {
     let subjectCaller: Account;
 
     let navIssuanceSettings: NAVIssuanceSettings;
+    let setValuerAddress: Address;
     let managerRedemptionHook: Address;
     let managerFees: BigNumber[];
     let premiumPercentage: BigNumber;
@@ -2050,7 +2217,7 @@ describe("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
-          setValuer: ADDRESS_ZERO,
+          setValuer: setValuerAddress,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
@@ -2081,9 +2248,36 @@ describe("NavIssuanceModule", () => {
         subjectCaller = owner;
       });
 
+      context("when using a custom set valuer", () => {
+        before(async () => {
+          managerRedemptionHook = ADDRESS_ZERO;
+          // Set fees to 0
+          managerFees = [ether(0), ether(0)];
+          // Set premium percentage to 50 bps
+          premiumPercentage = ether(0);
+          const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+          // set valued at $500 by the custom set valuer
+          // which values ETH at 200 usd and usdc at 1 usd
+          await setValuerMock.setValuation(setup.usdc.address, ether(370));
+          await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
+          setValuerAddress = setValuerMock.address;
+        });
+
+        const  subject = () =>
+          navIssuanceModule.redeem(setToken.address, setup.usdc.address, ether("1.3"), usdc(481), owner.address);
+
+        it("should use the custom valuer to compute the redeem amount", async() => {
+          const oldBalance: BigNumber = await setup.usdc.balanceOf(owner.address);
+          await subject();
+          const newBalance: BigNumber = await setup.usdc.balanceOf(owner.address);
+          expect(newBalance.sub(oldBalance)).to.eq(usdc(481));
+        });
+      });
+
       context("when there are no fees and no redemption hooks", async () => {
         before(async () => {
           managerRedemptionHook = ADDRESS_ZERO;
+          setValuerAddress = ADDRESS_ZERO;
           // Set fees to 0
           managerFees = [ether(0), ether(0)];
           // Set premium percentage to 50 bps
@@ -2437,6 +2631,7 @@ describe("NavIssuanceModule", () => {
         let protocolManagerFee: BigNumber;
 
         before(async () => {
+          setValuerAddress = ADDRESS_ZERO;
           managerRedemptionHook = ADDRESS_ZERO;
           managerFees = [ether(0.1), ether(0.1)];
           premiumPercentage = ether(0.005);
@@ -2572,6 +2767,7 @@ describe("NavIssuanceModule", () => {
         let issuanceHookContract: ManagerIssuanceHookMock;
 
         before(async () => {
+          setValuerAddress = ADDRESS_ZERO;
           issuanceHookContract = await deployer.mocks.deployManagerIssuanceHookMock();
 
           managerRedemptionHook = issuanceHookContract.address;
@@ -3325,140 +3521,6 @@ describe("NavIssuanceModule", () => {
         });
       });
     }
-  });
-
-  context("custom set valuer", () => {
-    let setValuerMock: CustomSetValuerMock;
-    // This shadows the previous definition. I want to make sure there are no fees added to the module I use
-    let navIssuanceModule: NavIssuanceModule;
-    let setToken: SetToken;
-    // set valued at $400 by the regular set valuer
-    // which values ETH at 230 usd and usdc at 1 usd
-    const units = [ether(1), usdc(170)];
-
-    beforeEach(async () => {
-      setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
-      // set valued at $500 by the custom set valuer
-      // which values ETH at 200 usd and usdc at 1 usd
-      await setValuerMock.setValuation(setup.usdc.address, ether(370));
-      await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
-
-      navIssuanceModule = await deployer.modules.deployNavIssuanceModule(setup.controller.address, setup.weth.address);
-      await setup.controller.addModule(navIssuanceModule.address);
-
-      setToken = await setup.createSetToken(
-        [setup.weth.address, setup.usdc.address],
-        units,
-        [setup.issuanceModule.address, navIssuanceModule.address]
-      );
-      await setup.issuanceModule.initialize(setToken.address, ADDRESS_ZERO);
-      await setup.weth.approve(navIssuanceModule.address, ether(1000));
-      await setup.usdc.approve(navIssuanceModule.address, usdc(1000));
-      await setup.issuanceModule.issue(setToken.address, ether(8), owner.address);
-    });
-    let setValuerAddress: Address;
-
-    const subject = async(extra?: any) => {
-      const navIssuanceSettings: NAVIssuanceSettings = {
-        managerIssuanceHook: ADDRESS_ZERO,
-        managerRedemptionHook: ADDRESS_ZERO,
-        reserveAssets: [ setup.usdc.address, setup.weth.address ],
-        feeRecipient: await getRandomAddress(),
-        setValuer: setValuerAddress,
-        managerFees: [BigNumber.from("0"), BigNumber.from("0")],
-        maxManagerFee: BigNumber.from("0"),
-        premiumPercentage: BigNumber.from("0"),
-        maxPremiumPercentage: BigNumber.from("0"),
-        minSetTokenSupply: ether(1),
-      };
-      await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
-      return extra && extra(navIssuanceModule);
-    };
-
-    context("with a custom valuer", () => {
-      beforeEach(() => {
-        setValuerAddress = setValuerMock.address;
-      });
-
-      it("THEN the custom set valuer can be retrieved", async () => {
-        await subject();
-        const settings = await navIssuanceModule.navIssuanceSettings(setToken.address);
-        expect(settings.setValuer).to.eq(setValuerMock.address);
-      });
-
-      it("WHEN asking for the expected issue amount from 370 usdc, the price from the custom set valuer is used", async() => {
-        const issueAmountFrom370usdc = await subject((navModule: NavIssuanceModule) =>
-          navModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.usdc.address, usdc(370))
-        );
-        expect(issueAmountFrom370usdc).to.eq(ether("1"));
-      });
-
-      it("WHEN asking for the expected issue amount from 1 eth, the price from the custom set valuer is used", async() => {
-        const issueAmountFrom1weth  = await subject((navModule: NavIssuanceModule) =>
-          navModule.getExpectedSetTokenIssueQuantity( setToken.address, setup.weth.address, ether(1))
-        );
-        expect(issueAmountFrom1weth).to.eq(ether("0.54054054054054054"));
-      });
-
-      it("WHEN asking for the expected redeem amount in USDC, the price from the custom set valuer is used", async() => {
-        const usdcRedeemAmountFrom1Set = await subject((module: NavIssuanceModule) =>
-          navIssuanceModule.getExpectedReserveRedeemQuantity(setToken.address, setup.usdc.address, ether(1))
-        );
-        expect(usdcRedeemAmountFrom1Set).to.eq(usdc(370));
-      });
-
-      it("WHEN asking for the expected redeem amount in WETH, the price from the custom set valuer is used", async() => {
-        const wethRedeemAmountFrom1Set = await subject((module: NavIssuanceModule) =>
-          navIssuanceModule.getExpectedReserveRedeemQuantity(setToken.address, setup.weth.address, ether(1))
-        );
-        expect(wethRedeemAmountFrom1Set).to.eq(ether("1.85"));
-      });
-
-      it("WHEN doing a small NAV issue, THEN the expected amount given the custom valuer price is minted", async() => {
-        const oldBalance: BigNumber = await setToken.balanceOf(owner.address);
-        await subject((navModule: NavIssuanceModule) =>
-          navModule.issue(setToken.address, setup.usdc.address, usdc(296), ether("0.8"), owner.address)
-        );
-        const newBalance: BigNumber = await setToken.balanceOf(owner.address);
-        expect(newBalance.sub(oldBalance)).to.eq(ether("0.8"));
-      });
-
-
-      it("WHEN doing a small NAV redeem, THEN the expected amount given the custom valuer price is redeemed", async() => {
-        const oldBalance: BigNumber = await setToken.balanceOf(owner.address);
-        await subject((navModule: NavIssuanceModule) =>
-          navModule.redeem(setToken.address, setup.usdc.address, ether("1.3"), usdc(481), owner.address)
-        );
-        const newBalance: BigNumber = await setToken.balanceOf(owner.address);
-        expect(oldBalance.sub(newBalance)).to.eq(ether("1.3"));
-      });
-    });
-
-    context("with the default valuer", () => {
-      beforeEach(() => {
-        setValuerAddress = ADDRESS_ZERO;
-      });
-
-      it("THEN the set valuer address returns zero", async() => {
-        await subject();
-        const settings = await navIssuanceModule.navIssuanceSettings(setToken.address);
-        expect(settings.setValuer).to.eq(ADDRESS_ZERO);
-      });
-
-      it("WHEN asking for the expected issue amount for 200 usdc, the price from the default set valuer is used", async() => {
-        const issueAmountFrom200usdc = await subject((navModule: NavIssuanceModule) =>
-          navModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.usdc.address, usdc(200))
-        );
-        expect(issueAmountFrom200usdc).to.eq(ether("0.5"));
-      });
-
-      it("WHEN asking for the expected issue amount for 1 WETH, the price from the  default set valuer is used", async() => {
-        const issueAmountFrom1weth = await subject((navModule: NavIssuanceModule) =>
-          navModule.getExpectedSetTokenIssueQuantity(setToken.address, setup.weth.address, ether(1))
-        );
-        expect(issueAmountFrom1weth).to.eq(ether("0.5750"));
-      });
-    });
   });
 });
 
