@@ -2,10 +2,10 @@ import "module-alias/register";
 
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 
-import { Address, NAVIssuanceSettings } from "@utils/types";
+import { Address, CustomOracleNAVIssuanceSettings } from "@utils/types";
 import { Account } from "@utils/test/types";
 import { ONE, TWO, THREE, ZERO, ADDRESS_ZERO } from "@utils/constants";
-import { ManagerIssuanceHookMock, NAVIssuanceHookMock, NavIssuanceModule, SetToken } from "@utils/contracts";
+import { ManagerIssuanceHookMock, NAVIssuanceHookMock, CustomOracleNavIssuanceModule, SetToken, CustomSetValuerMock } from "@utils/contracts";
 import DeployHelper from "@utils/deploys";
 import {
   bitcoin,
@@ -34,14 +34,14 @@ import { ERC20__factory } from "../../../typechain/factories/ERC20__factory";
 
 const expect = getWaffleExpect();
 
-describe.only("NavIssuanceModule", () => {
+describe("CustomOracleNavIssuanceModule", () => {
   let owner: Account;
   let feeRecipient: Account;
   let recipient: Account;
   let deployer: DeployHelper;
 
   let setup: SystemFixture;
-  let navIssuanceModule: NavIssuanceModule;
+  let customOracleNavIssuanceModule: CustomOracleNavIssuanceModule;
 
   before(async () => {
     [
@@ -54,8 +54,8 @@ describe.only("NavIssuanceModule", () => {
     setup = getSystemFixture(owner.address);
     await setup.initialize();
 
-    navIssuanceModule = await deployer.modules.deployNavIssuanceModule(setup.controller.address, setup.weth.address);
-    await setup.controller.addModule(navIssuanceModule.address);
+    customOracleNavIssuanceModule = await deployer.modules.deployCustomOracleNavIssuanceModule(setup.controller.address, setup.weth.address);
+    await setup.controller.addModule(customOracleNavIssuanceModule.address);
   });
 
   addSnapshotBeforeRestoreAfterEach();
@@ -69,21 +69,21 @@ describe.only("NavIssuanceModule", () => {
       subjectWETH = setup.weth.address;
     });
 
-    async function subject(): Promise<NavIssuanceModule> {
-      return deployer.modules.deployNavIssuanceModule(subjectController, subjectWETH);
+    async function subject(): Promise<CustomOracleNavIssuanceModule> {
+      return deployer.modules.deployCustomOracleNavIssuanceModule(subjectController, subjectWETH);
     }
 
     it("should set the correct controller", async () => {
-      const navIssuanceModule = await subject();
+      const customOracleNavIssuanceModule = await subject();
 
-      const controller = await navIssuanceModule.controller();
+      const controller = await customOracleNavIssuanceModule.controller();
       expect(controller).to.eq(subjectController);
     });
 
     it("should set the correct weth contract", async () => {
-      const navIssuanceModule = await subject();
+      const customOracleNavIssuanceModule = await subject();
 
-      const weth = await navIssuanceModule.weth();
+      const weth = await customOracleNavIssuanceModule.weth();
       expect(weth).to.eq(subjectWETH);
     });
   });
@@ -99,8 +99,9 @@ describe.only("NavIssuanceModule", () => {
     let premiumPercentage: BigNumber;
     let maxPremiumPercentage: BigNumber;
     let minSetTokenSupply: BigNumber;
+    let setValuerAddress: Address;
 
-    let subjectNAVIssuanceSettings: NAVIssuanceSettings;
+    let subjectNAVIssuanceSettings: CustomOracleNAVIssuanceSettings;
     let subjectSetToken: Address;
     let subjectCaller: Account;
 
@@ -108,7 +109,7 @@ describe.only("NavIssuanceModule", () => {
       setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
       managerIssuanceHook = await getRandomAddress();
       managerRedemptionHook = await getRandomAddress();
@@ -129,6 +130,7 @@ describe.only("NavIssuanceModule", () => {
       subjectNAVIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: setValuerAddress,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -136,51 +138,66 @@ describe.only("NavIssuanceModule", () => {
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
       subjectCaller = owner;
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.connect(subjectCaller.wallet).initialize(
+      return customOracleNavIssuanceModule.connect(subjectCaller.wallet).initialize(
         subjectSetToken,
         subjectNAVIssuanceSettings
       );
     }
-
-    it("should set the correct NAV issuance settings", async () => {
-      await subject();
-
-      const navIssuanceSettings: any = await navIssuanceModule.navIssuanceSettings(subjectSetToken);
-      const retrievedReserveAssets = await navIssuanceModule.getReserveAssets(subjectSetToken);
-      const managerIssueFee = await navIssuanceModule.getManagerFee(subjectSetToken, ZERO);
-      const managerRedeemFee = await navIssuanceModule.getManagerFee(subjectSetToken, ONE);
-
-      expect(JSON.stringify(retrievedReserveAssets)).to.eq(JSON.stringify(reserveAssets));
-      expect(navIssuanceSettings.managerIssuanceHook).to.eq(managerIssuanceHook);
-      expect(navIssuanceSettings.managerRedemptionHook).to.eq(managerRedemptionHook);
-      expect(navIssuanceSettings.feeRecipient).to.eq(managerFeeRecipient);
-      expect(managerIssueFee).to.eq(managerFees[0]);
-      expect(managerRedeemFee).to.eq(managerFees[1]);
-      expect(navIssuanceSettings.maxManagerFee).to.eq(maxManagerFee);
-      expect(navIssuanceSettings.premiumPercentage).to.eq(premiumPercentage);
-      expect(navIssuanceSettings.maxPremiumPercentage).to.eq(maxPremiumPercentage);
-      expect(navIssuanceSettings.minSetTokenSupply).to.eq(minSetTokenSupply);
+    context("when using a custom valuer", () => {
+      before(async () => {
+        const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+        setValuerAddress = setValuerMock.address;
+      });
+      it("the set valuer address should be present in the settings", async () => {
+        await subject();
+        const navIssuanceSettings: any = await customOracleNavIssuanceModule.navIssuanceSettings(subjectSetToken);
+        expect(navIssuanceSettings.setValuer).to.eq(setValuerAddress);
+      });
     });
 
-    it("should enable the Module on the SetToken", async () => {
-      await subject();
+    context("when using the default valuer", () => {
+      before(async() => {setValuerAddress = ADDRESS_ZERO; });
+      it("should set the correct NAV issuance settings", async () => {
+        await subject();
 
-      const isModuleEnabled = await setToken.isInitializedModule(navIssuanceModule.address);
-      expect(isModuleEnabled).to.eq(true);
-    });
+        const navIssuanceSettings: any = await customOracleNavIssuanceModule.navIssuanceSettings(subjectSetToken);
+        const retrievedReserveAssets = await customOracleNavIssuanceModule.getReserveAssets(subjectSetToken);
+        const managerIssueFee = await customOracleNavIssuanceModule.getManagerFee(subjectSetToken, ZERO);
+        const managerRedeemFee = await customOracleNavIssuanceModule.getManagerFee(subjectSetToken, ONE);
 
-    it("should properly set reserve assets mapping", async () => {
-      await subject();
+        expect(JSON.stringify(retrievedReserveAssets)).to.eq(JSON.stringify(reserveAssets));
+        expect(navIssuanceSettings.managerIssuanceHook).to.eq(managerIssuanceHook);
+        expect(navIssuanceSettings.managerRedemptionHook).to.eq(managerRedemptionHook);
+        expect(navIssuanceSettings.setValuer).to.eq(ADDRESS_ZERO);
+        expect(navIssuanceSettings.feeRecipient).to.eq(managerFeeRecipient);
+        expect(managerIssueFee).to.eq(managerFees[0]);
+        expect(managerRedeemFee).to.eq(managerFees[1]);
+        expect(navIssuanceSettings.maxManagerFee).to.eq(maxManagerFee);
+        expect(navIssuanceSettings.premiumPercentage).to.eq(premiumPercentage);
+        expect(navIssuanceSettings.maxPremiumPercentage).to.eq(maxPremiumPercentage);
+        expect(navIssuanceSettings.minSetTokenSupply).to.eq(minSetTokenSupply);
+      });
 
-      const isUsdcReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, setup.usdc.address);
-      const isWethReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, setup.weth.address);
-      expect(isUsdcReserveAsset).to.eq(true);
-      expect(isWethReserveAsset).to.eq(true);
+      it("should enable the Module on the SetToken", async () => {
+        await subject();
+
+        const isModuleEnabled = await setToken.isInitializedModule(customOracleNavIssuanceModule.address);
+        expect(isModuleEnabled).to.eq(true);
+      });
+
+      it("should properly set reserve assets mapping", async () => {
+        await subject();
+
+        const isUsdcReserveAsset = await customOracleNavIssuanceModule.isReserveAsset(subjectSetToken, setup.usdc.address);
+        const isWethReserveAsset = await customOracleNavIssuanceModule.isReserveAsset(subjectSetToken, setup.weth.address);
+        expect(isUsdcReserveAsset).to.eq(true);
+        expect(isWethReserveAsset).to.eq(true);
+      });
     });
 
     describe("when the caller is not the SetToken manager", async () => {
@@ -198,13 +215,13 @@ describe.only("NavIssuanceModule", () => {
         const newModule = await getRandomAddress();
         await setup.controller.addModule(newModule);
 
-        const navIssuanceModuleNotPendingSetToken = await setup.createSetToken(
+        const customOracleNavIssuanceModuleNotPendingSetToken = await setup.createSetToken(
           [setup.weth.address],
           [ether(1)],
           [newModule]
         );
 
-        subjectSetToken = navIssuanceModuleNotPendingSetToken.address;
+        subjectSetToken = customOracleNavIssuanceModuleNotPendingSetToken.address;
       });
 
       it("should revert", async () => {
@@ -217,7 +234,7 @@ describe.only("NavIssuanceModule", () => {
         const nonEnabledSetToken = await setup.createNonControllerEnabledSetToken(
           [setup.weth.address],
           [ether(1)],
-          [navIssuanceModule.address]
+          [customOracleNavIssuanceModule.address]
         );
 
         subjectSetToken = nonEnabledSetToken.address;
@@ -334,7 +351,7 @@ describe.only("NavIssuanceModule", () => {
       setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
       // Set premium to 1%
       const managerIssuanceHook = await getRandomAddress();
@@ -353,11 +370,12 @@ describe.only("NavIssuanceModule", () => {
       const minSetTokenSupply = ether(1);
 
       subjectSetToken = setToken.address;
-      await navIssuanceModule.connect(owner.wallet).initialize(
+      await customOracleNavIssuanceModule.connect(owner.wallet).initialize(
         setToken.address,
         {
           managerIssuanceHook,
           managerRedemptionHook,
+          setValuer: ADDRESS_ZERO,
           reserveAssets,
           feeRecipient: managerFeeRecipient,
           managerFees,
@@ -368,7 +386,7 @@ describe.only("NavIssuanceModule", () => {
         }
       );
 
-      subjectModule = navIssuanceModule.address;
+      subjectModule = customOracleNavIssuanceModule.address;
     });
 
     async function subject(): Promise<any> {
@@ -378,8 +396,8 @@ describe.only("NavIssuanceModule", () => {
     it("should delete reserve assets state", async () => {
       await subject();
 
-      const isUsdcReserveAsset = await navIssuanceModule.isReserveAsset(setToken.address, setup.usdc.address);
-      const isWethReserveAsset = await navIssuanceModule.isReserveAsset(setToken.address, setup.weth.address);
+      const isUsdcReserveAsset = await customOracleNavIssuanceModule.isReserveAsset(setToken.address, setup.usdc.address);
+      const isWethReserveAsset = await customOracleNavIssuanceModule.isReserveAsset(setToken.address, setup.weth.address);
       expect(isUsdcReserveAsset).to.be.false;
       expect(isWethReserveAsset).to.be.false;
     });
@@ -387,10 +405,10 @@ describe.only("NavIssuanceModule", () => {
     it("should delete the NAV issuance settings", async () => {
       await subject();
 
-      const navIssuanceSettings: any = await navIssuanceModule.navIssuanceSettings(subjectSetToken);
-      const retrievedReserveAssets = await navIssuanceModule.getReserveAssets(subjectSetToken);
-      const managerIssueFee = await navIssuanceModule.getManagerFee(subjectSetToken, ZERO);
-      const managerRedeemFee = await navIssuanceModule.getManagerFee(subjectSetToken, ONE);
+      const navIssuanceSettings: any = await customOracleNavIssuanceModule.navIssuanceSettings(subjectSetToken);
+      const retrievedReserveAssets = await customOracleNavIssuanceModule.getReserveAssets(subjectSetToken);
+      const managerIssueFee = await customOracleNavIssuanceModule.getManagerFee(subjectSetToken, ZERO);
+      const managerRedeemFee = await customOracleNavIssuanceModule.getManagerFee(subjectSetToken, ONE);
 
       expect(retrievedReserveAssets).to.be.empty;
       expect(navIssuanceSettings.managerIssuanceHook).to.eq(ADDRESS_ZERO);
@@ -413,7 +431,7 @@ describe.only("NavIssuanceModule", () => {
       const setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -433,6 +451,7 @@ describe.only("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -440,9 +459,9 @@ describe.only("NavIssuanceModule", () => {
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(
+      await customOracleNavIssuanceModule.initialize(
         setToken.address,
         navIssuanceSettings
       );
@@ -451,7 +470,7 @@ describe.only("NavIssuanceModule", () => {
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.getReserveAssets(subjectSetToken);
+      return customOracleNavIssuanceModule.getReserveAssets(subjectSetToken);
     }
 
     it("should return the valid reserve assets", async () => {
@@ -471,7 +490,7 @@ describe.only("NavIssuanceModule", () => {
       const setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -491,6 +510,7 @@ describe.only("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -498,20 +518,20 @@ describe.only("NavIssuanceModule", () => {
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(
+      await customOracleNavIssuanceModule.initialize(
         setToken.address,
         navIssuanceSettings
       );
 
       subjectSetToken = setToken.address;
-      subjectReserveAsset = await getRandomAddress(); // Unused in NavIssuanceModule V1
+      subjectReserveAsset = await getRandomAddress(); // Unused in CustomOracleNavIssuanceModule V1
       subjectReserveQuantity = ether(1); // Unused in NAVIssuanceModule V1
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.getIssuePremium(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
+      return customOracleNavIssuanceModule.getIssuePremium(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
     }
 
     it("should return the correct premium", async () => {
@@ -531,7 +551,7 @@ describe.only("NavIssuanceModule", () => {
       const setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -551,6 +571,7 @@ describe.only("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -558,20 +579,20 @@ describe.only("NavIssuanceModule", () => {
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(
+      await customOracleNavIssuanceModule.initialize(
         setToken.address,
         navIssuanceSettings
       );
 
       subjectSetToken = setToken.address;
-      subjectReserveAsset = await getRandomAddress(); // Unused in NavIssuanceModule V1
+      subjectReserveAsset = await getRandomAddress(); // Unused in CustomOracleNavIssuanceModule V1
       subjectSetTokenQuantity = ether(1); // Unused in NAVIssuanceModule V1
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.getRedeemPremium(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
+      return customOracleNavIssuanceModule.getRedeemPremium(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
     }
 
     it("should return the correct premium", async () => {
@@ -590,7 +611,7 @@ describe.only("NavIssuanceModule", () => {
       const setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -610,6 +631,7 @@ describe.only("NavIssuanceModule", () => {
       const navIssuanceSettings = {
         managerIssuanceHook,
         managerRedemptionHook,
+        setValuer: ADDRESS_ZERO,
         reserveAssets,
         feeRecipient: managerFeeRecipient,
         managerFees,
@@ -617,9 +639,9 @@ describe.only("NavIssuanceModule", () => {
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(
+      await customOracleNavIssuanceModule.initialize(
         setToken.address,
         navIssuanceSettings
       );
@@ -629,7 +651,7 @@ describe.only("NavIssuanceModule", () => {
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.getManagerFee(subjectSetToken, subjectFeeIndex);
+      return customOracleNavIssuanceModule.getManagerFee(subjectSetToken, subjectFeeIndex);
     }
 
     it("should return the manager fee", async () => {
@@ -645,15 +667,17 @@ describe.only("NavIssuanceModule", () => {
     let subjectReserveQuantity: BigNumber;
 
     let setToken: SetToken;
+    let setValuerAddress: Address;
+    let setValuerMock: CustomSetValuerMock;
     let managerFees: BigNumber[];
     let protocolDirectFee: BigNumber;
     let premiumPercentage: BigNumber;
 
     beforeEach(async () => {
       setToken = await setup.createSetToken(
-        [setup.weth.address],
-        [ether(1)],
-        [navIssuanceModule.address]
+        [setup.weth.address, setup.usdc.address],
+        [ether(1), usdc(1)],
+        [customOracleNavIssuanceModule.address, setup.issuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -674,47 +698,113 @@ describe.only("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: setValuerAddress,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(
+      await customOracleNavIssuanceModule.initialize(
         setToken.address,
         navIssuanceSettings
       );
+      await setup.weth.approve(setup.controller.address, ether(100));
+      await setup.usdc.approve(setup.controller.address, usdc(1000000));
+      await setup.issuanceModule.connect(owner.wallet).initialize(setToken.address, ADDRESS_ZERO);
+      await setup.issuanceModule.connect(owner.wallet).issue(setToken.address, ether(10), owner.address);
 
       protocolDirectFee = ether(.02);
-      await setup.controller.addFee(navIssuanceModule.address, TWO, protocolDirectFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, TWO, protocolDirectFee);
 
       const protocolManagerFee = ether(.3);
-      await setup.controller.addFee(navIssuanceModule.address, ZERO, protocolManagerFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, ZERO, protocolManagerFee);
 
       subjectSetToken = setToken.address;
-      subjectReserveAsset = setup.usdc.address;
-      subjectReserveQuantity = ether(1);
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.getExpectedSetTokenIssueQuantity(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
+      return customOracleNavIssuanceModule.getExpectedSetTokenIssueQuantity(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
     }
 
-    it("should return the correct expected Set issue quantity", async () => {
-      const expectedSetTokenIssueQuantity = await getExpectedSetTokenIssueQuantity(
-        setToken,
-        setup.setValuer,
-        subjectReserveAsset,
-        usdc(1),
-        subjectReserveQuantity,
-        managerFees[0],
-        protocolDirectFee,
-        premiumPercentage
-      );
-      const returnedSetTokenIssueQuantity = await subject();
-      expect(expectedSetTokenIssueQuantity).to.eq(returnedSetTokenIssueQuantity);
+    context("with a custom set valuer", () => {
+      const usdcValuation: BigNumber = ether(370);
+      const wethValuation: BigNumber = ether(1.85);
+      before(async() => {
+        setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+        await setValuerMock.setValuation(setup.usdc.address, usdcValuation);
+        await setValuerMock.setValuation(setup.weth.address, wethValuation);
+        setValuerAddress = setValuerMock.address;
+      });
+
+      context("when issuing with usdc", () => {
+        before(() => {
+          subjectReserveAsset = setup.usdc.address;
+          subjectReserveQuantity = usdc(370);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const expectedSetTokenIssueQuantity  = await getExpectedSetTokenIssueQuantity(
+            setToken,
+            setValuerMock,
+            subjectReserveAsset,
+            usdc(1), // usdc base units
+            subjectReserveQuantity,
+            managerFees[0],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          );
+          const returnedSetTokenIssueQuantity = await subject();
+          expect(returnedSetTokenIssueQuantity).to.eq(expectedSetTokenIssueQuantity);
+        });
+      });
+
+      context("when issuing with weth", () => {
+        before(() => {
+          subjectReserveAsset = setup.weth.address;
+          subjectReserveQuantity = ether(1);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const expectedSetTokenIssueQuantity  = await getExpectedSetTokenIssueQuantity(
+            setToken,
+            setValuerMock,
+            subjectReserveAsset,
+            ether(1), // usdc base units
+            subjectReserveQuantity,
+            managerFees[0],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          );
+          const returnedSetTokenIssueQuantity = await subject();
+          expect(returnedSetTokenIssueQuantity).to.eq(expectedSetTokenIssueQuantity);
+        });
+      });
+    });
+
+    context("with the default valuer", () => {
+      before(async() => {
+        subjectReserveAsset = setup.usdc.address;
+        subjectReserveQuantity = ether(1);
+        setValuerAddress = ADDRESS_ZERO;
+      });
+      it("should return the correct expected Set issue quantity", async () => {
+
+        const expectedSetTokenIssueQuantity = await getExpectedSetTokenIssueQuantity(
+          setToken,
+          setup.setValuer,
+          subjectReserveAsset,
+          usdc(1),
+          subjectReserveQuantity,
+          managerFees[0],
+          protocolDirectFee,
+          premiumPercentage
+        );
+        const returnedSetTokenIssueQuantity = await subject();
+        expect(expectedSetTokenIssueQuantity).to.eq(returnedSetTokenIssueQuantity);
+      });
     });
   });
 
@@ -722,6 +812,7 @@ describe.only("NavIssuanceModule", () => {
     let subjectSetToken: Address;
     let subjectReserveAsset: Address;
     let subjectSetTokenQuantity: BigNumber;
+    let setValuerAddress: Address;
 
     let setToken: SetToken;
     let managerFees: BigNumber[];
@@ -732,7 +823,7 @@ describe.only("NavIssuanceModule", () => {
       setToken = await setup.createSetToken(
         [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
         [ether(1), usdc(270), bitcoin(1).div(10), ether(600)],
-        [setup.issuanceModule.address, navIssuanceModule.address]
+        [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -753,15 +844,16 @@ describe.only("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: setValuerAddress,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+      await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
       // Approve tokens to the controller
       await setup.weth.approve(setup.controller.address, ether(100));
       await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -773,35 +865,90 @@ describe.only("NavIssuanceModule", () => {
       await setup.issuanceModule.connect(owner.wallet).issue(setToken.address, ether(10), owner.address);
 
       protocolDirectFee = ether(.02);
-      await setup.controller.addFee(navIssuanceModule.address, THREE, protocolDirectFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, THREE, protocolDirectFee);
 
       const protocolManagerFee = ether(.3);
-      await setup.controller.addFee(navIssuanceModule.address, ONE, protocolManagerFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, ONE, protocolManagerFee);
 
       subjectSetToken = setToken.address;
-      subjectReserveAsset = setup.usdc.address;
-      subjectSetTokenQuantity = ether(1);
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.getExpectedReserveRedeemQuantity(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
+      return customOracleNavIssuanceModule.getExpectedReserveRedeemQuantity(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
     }
 
-    it("should return the correct expected reserve asset redeem quantity", async () => {
-      const setTokenValuation = await setup.setValuer.calculateSetTokenValuation(
-        subjectSetToken,
-        subjectReserveAsset
-      );
-      const expectedRedeemQuantity = getExpectedReserveRedeemQuantity(
-        subjectSetTokenQuantity,
-        setTokenValuation,
-        usdc(1), // USDC base units
-        managerFees[1],
-        protocolDirectFee, // Protocol fee percentage
-        premiumPercentage
-      );
-      const returnedRedeemQuantity = await subject();
-      expect(expectedRedeemQuantity).to.eq(returnedRedeemQuantity);
+    context("with a custom set valuer", () => {
+      const usdcValuation: BigNumber = ether(370);
+      const wethValuation: BigNumber = ether(1.85);
+      before(async() => {
+        const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+        await setValuerMock.setValuation(setup.usdc.address, usdcValuation);
+        await setValuerMock.setValuation(setup.weth.address, wethValuation);
+        setValuerAddress = setValuerMock.address;
+      });
+
+      context("when redeming usdc", () => {
+        before(() => {
+          subjectReserveAsset = setup.usdc.address;
+          subjectSetTokenQuantity = ether(1);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const usdcRedeemAmountFrom1Set = await subject();
+          expect(usdcRedeemAmountFrom1Set).to.eq(getExpectedReserveRedeemQuantity(
+            subjectSetTokenQuantity,
+            usdcValuation,
+            usdc(1), // USDC base units
+            managerFees[1],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          ));
+        });
+      });
+
+      context("when redeming weth", () => {
+        before(() => {
+          subjectReserveAsset = setup.weth.address;
+          subjectSetTokenQuantity = ether(1);
+        });
+
+        it("then the price from the custom set valuer is used", async() => {
+          const wethRedeemAmountFrom1Set = await subject();
+          expect(wethRedeemAmountFrom1Set).to.eq(getExpectedReserveRedeemQuantity(
+            subjectSetTokenQuantity,
+            wethValuation,
+            ether(1), // USDC base units
+            managerFees[1],
+            protocolDirectFee, // Protocol fee percentage
+            premiumPercentage
+          ));
+        });
+      });
+    });
+
+    context("with the default set valuer", () => {
+      before(() => {
+        setValuerAddress = ADDRESS_ZERO;
+        subjectReserveAsset = setup.usdc.address;
+        subjectSetTokenQuantity = ether(1);
+      });
+
+      it("should return the correct expected reserve asset redeem quantity", async () => {
+        const setTokenValuation = await setup.setValuer.calculateSetTokenValuation(
+          subjectSetToken,
+          subjectReserveAsset
+        );
+        const expectedRedeemQuantity = getExpectedReserveRedeemQuantity(
+          subjectSetTokenQuantity,
+          setTokenValuation,
+          usdc(1), // USDC base units
+          managerFees[1],
+          protocolDirectFee, // Protocol fee percentage
+          premiumPercentage
+        );
+        const returnedRedeemQuantity = await subject();
+        expect(expectedRedeemQuantity).to.eq(returnedRedeemQuantity);
+      });
     });
   });
 
@@ -816,7 +963,7 @@ describe.only("NavIssuanceModule", () => {
       setToken = await setup.createSetToken(
         [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
         [ether(1), usdc(270), bitcoin(1).div(10), ether(600)],
-        [setup.issuanceModule.address, navIssuanceModule.address]
+        [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -837,15 +984,16 @@ describe.only("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+      await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
       // Approve tokens to the controller
       await setup.weth.approve(setup.controller.address, ether(100));
       await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -857,10 +1005,10 @@ describe.only("NavIssuanceModule", () => {
       await setup.issuanceModule.connect(owner.wallet).issue(setToken.address, ether(10), owner.address);
 
       const protocolDirectFee = ether(.02);
-      await setup.controller.addFee(navIssuanceModule.address, TWO, protocolDirectFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, TWO, protocolDirectFee);
 
       const protocolManagerFee = ether(.3);
-      await setup.controller.addFee(navIssuanceModule.address, ZERO, protocolManagerFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, ZERO, protocolManagerFee);
 
       subjectSetToken = setToken.address;
       subjectReserveAsset = setup.usdc.address;
@@ -868,7 +1016,7 @@ describe.only("NavIssuanceModule", () => {
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.isIssueValid(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
+      return customOracleNavIssuanceModule.isIssueValid(subjectSetToken, subjectReserveAsset, subjectReserveQuantity);
     }
 
     it("should return true", async () => {
@@ -922,7 +1070,7 @@ describe.only("NavIssuanceModule", () => {
       setToken = await setup.createSetToken(
         [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
         [ether(1), usdc(270), bitcoin(1).div(10), ether(600)],
-        [setup.issuanceModule.address, navIssuanceModule.address]
+        [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
       );
       const managerIssuanceHook = await getRandomAddress();
       const managerRedemptionHook = await getRandomAddress();
@@ -943,15 +1091,16 @@ describe.only("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+      await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
       // Approve tokens to the controller
       await setup.weth.approve(setup.controller.address, ether(100));
       await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -963,10 +1112,10 @@ describe.only("NavIssuanceModule", () => {
       await setup.issuanceModule.connect(owner.wallet).issue(setToken.address, ether(10), owner.address);
 
       const protocolDirectFee = ether(.02);
-      await setup.controller.addFee(navIssuanceModule.address, THREE, protocolDirectFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, THREE, protocolDirectFee);
 
       const protocolManagerFee = ether(.3);
-      await setup.controller.addFee(navIssuanceModule.address, ONE, protocolManagerFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, ONE, protocolManagerFee);
 
       subjectSetToken = setToken.address;
       subjectReserveAsset = setup.usdc.address;
@@ -974,7 +1123,7 @@ describe.only("NavIssuanceModule", () => {
     });
 
     async function subject(): Promise<any> {
-      return navIssuanceModule.isRedeemValid(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
+      return customOracleNavIssuanceModule.isRedeemValid(subjectSetToken, subjectReserveAsset, subjectSetTokenQuantity);
     }
 
     it("should return true", async () => {
@@ -1048,8 +1197,9 @@ describe.only("NavIssuanceModule", () => {
     let subjectMinSetTokenReceived: BigNumber;
     let subjectTo: Account;
     let subjectCaller: Account;
+    let setValuerAddress: Address;
 
-    let navIssuanceSettings: NAVIssuanceSettings;
+    let navIssuanceSettings: CustomOracleNAVIssuanceSettings;
     let managerIssuanceHook: Address;
     let managerFees: BigNumber[];
     let premiumPercentage: BigNumber;
@@ -1058,12 +1208,11 @@ describe.only("NavIssuanceModule", () => {
 
     context("when there are 4 components and reserve asset is USDC", async () => {
       beforeEach(async () => {
-        // Valued at 2000 USDC
         units = [ether(1), usdc(270), bitcoin(1).div(10), ether(600)];
         setToken = await setup.createSetToken(
           [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
           units, // Set is valued at 2000 USDC
-          [setup.issuanceModule.address, navIssuanceModule.address]
+          [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
         );
         const managerRedemptionHook = await getRandomAddress();
         const reserveAssets = [setup.usdc.address, setup.weth.address];
@@ -1078,6 +1227,7 @@ describe.only("NavIssuanceModule", () => {
         navIssuanceSettings = {
           managerIssuanceHook,
           managerRedemptionHook,
+          setValuer: setValuerAddress,
           reserveAssets,
           feeRecipient: managerFeeRecipient,
           managerFees,
@@ -1085,9 +1235,9 @@ describe.only("NavIssuanceModule", () => {
           premiumPercentage,
           maxPremiumPercentage,
           minSetTokenSupply,
-        } as NAVIssuanceSettings;
+        } as CustomOracleNAVIssuanceSettings;
 
-        await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+        await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
         // Approve tokens to the controller
         await setup.weth.approve(setup.controller.address, ether(100));
         await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -1101,7 +1251,7 @@ describe.only("NavIssuanceModule", () => {
         // Issue with 1k USDC
         issueQuantity = usdc(1000);
 
-        await setup.usdc.approve(navIssuanceModule.address, issueQuantity);
+        await setup.usdc.approve(customOracleNavIssuanceModule.address, issueQuantity);
 
         subjectSetToken = setToken.address;
         subjectReserveAsset = setup.usdc.address;
@@ -1111,9 +1261,34 @@ describe.only("NavIssuanceModule", () => {
         subjectCaller = owner;
       });
 
+      context("when using a custom valuer", () => {
+        before(async () => {
+          managerIssuanceHook = ADDRESS_ZERO;
+          // Set fees to 0
+          managerFees = [ether(0), ether(0)];
+          premiumPercentage = ether(0);
+          const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+          // set valued at $500 by the custom set valuer
+          // which values ETH at 200 usd and usdc at 1 usd
+          await setValuerMock.setValuation(setup.usdc.address, ether(370));
+          await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
+          setValuerAddress = setValuerMock.address;
+        });
+
+        const subject = () => customOracleNavIssuanceModule.issue(setToken.address, setup.usdc.address, usdc(296), ether("0.8"), owner.address);
+
+        it("should use the custom valuer to compute the issue amount", async() => {
+          const oldBalance: BigNumber = await setToken.balanceOf(owner.address);
+          await subject();
+          const newBalance: BigNumber = await setToken.balanceOf(owner.address);
+          expect(newBalance.sub(oldBalance)).to.eq(ether("0.8"));
+        });
+      });
+
       context("when there are no fees and no issuance hooks", async () => {
         before(async () => {
           managerIssuanceHook = ADDRESS_ZERO;
+          setValuerAddress = ADDRESS_ZERO;
           // Set fees to 0
           managerFees = [ether(0), ether(0)];
           // Set premium percentage to 50 bps
@@ -1121,7 +1296,7 @@ describe.only("NavIssuanceModule", () => {
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).issue(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).issue(
             subjectSetToken,
             subjectReserveAsset,
             subjectReserveQuantity,
@@ -1199,12 +1374,12 @@ describe.only("NavIssuanceModule", () => {
         });
 
         it("should emit the SetTokenNAVIssued event", async () => {
-          const expectedSetTokenIssued = await navIssuanceModule.getExpectedSetTokenIssueQuantity(
+          const expectedSetTokenIssued = await customOracleNavIssuanceModule.getExpectedSetTokenIssueQuantity(
             subjectSetToken,
             subjectReserveAsset,
             subjectReserveQuantity
           );
-          await expect(subject()).to.emit(navIssuanceModule, "SetTokenNAVIssued").withArgs(
+          await expect(subject()).to.emit(customOracleNavIssuanceModule, "SetTokenNAVIssued").withArgs(
             subjectSetToken,
             subjectCaller.address,
             subjectTo.address,
@@ -1408,7 +1583,7 @@ describe.only("NavIssuanceModule", () => {
             const nonEnabledSetToken = await setup.createNonControllerEnabledSetToken(
               [setup.weth.address],
               [ether(1)],
-              [navIssuanceModule.address]
+              [customOracleNavIssuanceModule.address]
             );
 
             subjectSetToken = nonEnabledSetToken.address;
@@ -1426,20 +1601,21 @@ describe.only("NavIssuanceModule", () => {
 
         before(async () => {
           managerIssuanceHook = ADDRESS_ZERO;
+          setValuerAddress = ADDRESS_ZERO;
           managerFees = [ether(0.1), ether(0.1)];
           premiumPercentage = ether(0.005);
         });
 
         beforeEach(async () => {
           protocolDirectFee = ether(.02);
-          await setup.controller.addFee(navIssuanceModule.address, TWO, protocolDirectFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, TWO, protocolDirectFee);
 
           protocolManagerFee = ether(.3);
-          await setup.controller.addFee(navIssuanceModule.address, ZERO, protocolManagerFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, ZERO, protocolManagerFee);
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).issue(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).issue(
             subjectSetToken,
             subjectReserveAsset,
             subjectReserveQuantity,
@@ -1552,12 +1728,13 @@ describe.only("NavIssuanceModule", () => {
 
         before(async () => {
           issuanceHookContract = await deployer.mocks.deployNavIssuanceHookMock();
+          setValuerAddress = ADDRESS_ZERO;
 
           managerIssuanceHook = issuanceHookContract.address;
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.issue(
+          return customOracleNavIssuanceModule.issue(
             subjectSetToken,
             subjectReserveAsset,
             subjectReserveQuantity,
@@ -1593,7 +1770,7 @@ describe.only("NavIssuanceModule", () => {
     let subjectCaller: Account;
     let subjectValue: BigNumber;
 
-    let navIssuanceSettings: NAVIssuanceSettings;
+    let navIssuanceSettings: CustomOracleNAVIssuanceSettings;
     let managerIssuanceHook: Address;
     let managerFees: BigNumber[];
     let premiumPercentage: BigNumber;
@@ -1607,7 +1784,7 @@ describe.only("NavIssuanceModule", () => {
         setToken = await setup.createSetToken(
           [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
           units, // Set is valued at 2000 USDC
-          [setup.issuanceModule.address, navIssuanceModule.address]
+          [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
         );
         const managerRedemptionHook = await getRandomAddress();
         const reserveAssets = [setup.usdc.address, setup.weth.address];
@@ -1623,15 +1800,16 @@ describe.only("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
+          setValuer: ADDRESS_ZERO,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
           premiumPercentage,
           maxPremiumPercentage,
           minSetTokenSupply,
-        } as NAVIssuanceSettings;
+        } as CustomOracleNAVIssuanceSettings;
 
-        await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+        await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
         // Approve tokens to the controller
         await setup.weth.approve(setup.controller.address, ether(100));
         await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -1661,7 +1839,7 @@ describe.only("NavIssuanceModule", () => {
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).issueWithEther(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).issueWithEther(
             subjectSetToken,
             subjectMinSetTokenReceived,
             subjectTo.address,
@@ -1738,12 +1916,12 @@ describe.only("NavIssuanceModule", () => {
         });
 
         it("should emit the SetTokenNAVIssued event", async () => {
-          const expectedSetTokenIssued = await navIssuanceModule.getExpectedSetTokenIssueQuantity(
+          const expectedSetTokenIssued = await customOracleNavIssuanceModule.getExpectedSetTokenIssueQuantity(
             subjectSetToken,
             setup.weth.address,
             subjectValue
           );
-          await expect(subject()).to.emit(navIssuanceModule, "SetTokenNAVIssued").withArgs(
+          await expect(subject()).to.emit(customOracleNavIssuanceModule, "SetTokenNAVIssued").withArgs(
             subjectSetToken,
             subjectCaller.address,
             subjectTo.address,
@@ -1855,7 +2033,7 @@ describe.only("NavIssuanceModule", () => {
             const nonEnabledSetToken = await setup.createNonControllerEnabledSetToken(
               [setup.weth.address],
               [ether(1)],
-              [navIssuanceModule.address]
+              [customOracleNavIssuanceModule.address]
             );
 
             subjectSetToken = nonEnabledSetToken.address;
@@ -1879,14 +2057,14 @@ describe.only("NavIssuanceModule", () => {
 
         beforeEach(async () => {
           protocolDirectFee = ether(.02);
-          await setup.controller.addFee(navIssuanceModule.address, TWO, protocolDirectFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, TWO, protocolDirectFee);
 
           protocolManagerFee = ether(.3);
-          await setup.controller.addFee(navIssuanceModule.address, ZERO, protocolManagerFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, ZERO, protocolManagerFee);
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).issueWithEther(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).issueWithEther(
             subjectSetToken,
             subjectMinSetTokenReceived,
             subjectTo.address,
@@ -2008,7 +2186,8 @@ describe.only("NavIssuanceModule", () => {
     let subjectTo: Account;
     let subjectCaller: Account;
 
-    let navIssuanceSettings: NAVIssuanceSettings;
+    let navIssuanceSettings: CustomOracleNAVIssuanceSettings;
+    let setValuerAddress: Address;
     let managerRedemptionHook: Address;
     let managerFees: BigNumber[];
     let premiumPercentage: BigNumber;
@@ -2022,7 +2201,7 @@ describe.only("NavIssuanceModule", () => {
         setToken = await setup.createSetToken(
           [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
           units, // Set is valued at 2000 USDC
-          [setup.issuanceModule.address, navIssuanceModule.address]
+          [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
         );
         const managerIssuanceHook = await getRandomAddress();
         const reserveAssets = [setup.usdc.address, setup.weth.address];
@@ -2038,15 +2217,16 @@ describe.only("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
+          setValuer: setValuerAddress,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
           premiumPercentage,
           maxPremiumPercentage,
           minSetTokenSupply,
-        } as NAVIssuanceSettings;
+        } as CustomOracleNAVIssuanceSettings;
 
-        await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+        await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
         // Approve tokens to the controller
         await setup.weth.approve(setup.controller.address, ether(100));
         await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -2068,9 +2248,36 @@ describe.only("NavIssuanceModule", () => {
         subjectCaller = owner;
       });
 
+      context("when using a custom set valuer", () => {
+        before(async () => {
+          managerRedemptionHook = ADDRESS_ZERO;
+          // Set fees to 0
+          managerFees = [ether(0), ether(0)];
+          // Set premium percentage to 50 bps
+          premiumPercentage = ether(0);
+          const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+          // set valued at $500 by the custom set valuer
+          // which values ETH at 200 usd and usdc at 1 usd
+          await setValuerMock.setValuation(setup.usdc.address, ether(370));
+          await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
+          setValuerAddress = setValuerMock.address;
+        });
+
+        const  subject = () =>
+          customOracleNavIssuanceModule.redeem(setToken.address, setup.usdc.address, ether("1.3"), usdc(481), owner.address);
+
+        it("should use the custom valuer to compute the redeem amount", async() => {
+          const oldBalance: BigNumber = await setup.usdc.balanceOf(owner.address);
+          await subject();
+          const newBalance: BigNumber = await setup.usdc.balanceOf(owner.address);
+          expect(newBalance.sub(oldBalance)).to.eq(usdc(481));
+        });
+      });
+
       context("when there are no fees and no redemption hooks", async () => {
         before(async () => {
           managerRedemptionHook = ADDRESS_ZERO;
+          setValuerAddress = ADDRESS_ZERO;
           // Set fees to 0
           managerFees = [ether(0), ether(0)];
           // Set premium percentage to 50 bps
@@ -2078,7 +2285,7 @@ describe.only("NavIssuanceModule", () => {
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).redeem(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeem(
             subjectSetToken,
             subjectReserveAsset,
             subjectSetTokenQuantity,
@@ -2167,7 +2374,7 @@ describe.only("NavIssuanceModule", () => {
         });
 
         it("should emit the SetTokenNAVRedeemed event", async () => {
-          await expect(subject()).to.emit(navIssuanceModule, "SetTokenNAVRedeemed").withArgs(
+          await expect(subject()).to.emit(customOracleNavIssuanceModule, "SetTokenNAVRedeemed").withArgs(
             subjectSetToken,
             subjectCaller.address,
             subjectTo.address,
@@ -2407,7 +2614,7 @@ describe.only("NavIssuanceModule", () => {
             const nonEnabledSetToken = await setup.createNonControllerEnabledSetToken(
               [setup.weth.address],
               [ether(1)],
-              [navIssuanceModule.address]
+              [customOracleNavIssuanceModule.address]
             );
 
             subjectSetToken = nonEnabledSetToken.address;
@@ -2424,6 +2631,7 @@ describe.only("NavIssuanceModule", () => {
         let protocolManagerFee: BigNumber;
 
         before(async () => {
+          setValuerAddress = ADDRESS_ZERO;
           managerRedemptionHook = ADDRESS_ZERO;
           managerFees = [ether(0.1), ether(0.1)];
           premiumPercentage = ether(0.005);
@@ -2431,14 +2639,14 @@ describe.only("NavIssuanceModule", () => {
 
         beforeEach(async () => {
           protocolDirectFee = ether(.02);
-          await setup.controller.addFee(navIssuanceModule.address, THREE, protocolDirectFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, THREE, protocolDirectFee);
 
           protocolManagerFee = ether(.3);
-          await setup.controller.addFee(navIssuanceModule.address, ONE, protocolManagerFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, ONE, protocolManagerFee);
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).redeem(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeem(
             subjectSetToken,
             subjectReserveAsset,
             subjectSetTokenQuantity,
@@ -2559,13 +2767,14 @@ describe.only("NavIssuanceModule", () => {
         let issuanceHookContract: ManagerIssuanceHookMock;
 
         before(async () => {
+          setValuerAddress = ADDRESS_ZERO;
           issuanceHookContract = await deployer.mocks.deployManagerIssuanceHookMock();
 
           managerRedemptionHook = issuanceHookContract.address;
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).redeem(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeem(
             subjectSetToken,
             subjectReserveAsset,
             subjectSetTokenQuantity,
@@ -2600,7 +2809,7 @@ describe.only("NavIssuanceModule", () => {
     let subjectTo: Account;
     let subjectCaller: Account;
 
-    let navIssuanceSettings: NAVIssuanceSettings;
+    let navIssuanceSettings: CustomOracleNAVIssuanceSettings;
     let managerRedemptionHook: Address;
     let managerFees: BigNumber[];
     let premiumPercentage: BigNumber;
@@ -2614,7 +2823,7 @@ describe.only("NavIssuanceModule", () => {
         setToken = await setup.createSetToken(
           [setup.weth.address, setup.usdc.address, setup.wbtc.address, setup.dai.address],
           units, // Set is valued at 2000 USDC
-          [setup.issuanceModule.address, navIssuanceModule.address]
+          [setup.issuanceModule.address, customOracleNavIssuanceModule.address]
         );
         const managerIssuanceHook = await getRandomAddress();
         const reserveAssets = [setup.usdc.address, setup.weth.address];
@@ -2630,15 +2839,16 @@ describe.only("NavIssuanceModule", () => {
           managerIssuanceHook,
           managerRedemptionHook,
           reserveAssets,
+          setValuer: ADDRESS_ZERO,
           feeRecipient: managerFeeRecipient,
           managerFees,
           maxManagerFee,
           premiumPercentage,
           maxPremiumPercentage,
           minSetTokenSupply,
-        } as NAVIssuanceSettings;
+        } as CustomOracleNAVIssuanceSettings;
 
-        await navIssuanceModule.initialize(setToken.address, navIssuanceSettings);
+        await customOracleNavIssuanceModule.initialize(setToken.address, navIssuanceSettings);
         // Approve tokens to the controller
         await setup.weth.approve(setup.controller.address, ether(100));
         await setup.usdc.approve(setup.controller.address, usdc(1000000));
@@ -2669,7 +2879,7 @@ describe.only("NavIssuanceModule", () => {
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).redeemIntoEther(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeemIntoEther(
             subjectSetToken,
             subjectSetTokenQuantity,
             subjectMinReserveQuantityReceived,
@@ -2758,7 +2968,7 @@ describe.only("NavIssuanceModule", () => {
         });
 
         it("should emit the SetTokenNAVRedeemed event", async () => {
-          await expect(subject()).to.emit(navIssuanceModule, "SetTokenNAVRedeemed").withArgs(
+          await expect(subject()).to.emit(customOracleNavIssuanceModule, "SetTokenNAVRedeemed").withArgs(
             subjectSetToken,
             subjectCaller.address,
             subjectTo.address,
@@ -2830,7 +3040,7 @@ describe.only("NavIssuanceModule", () => {
             const nonEnabledSetToken = await setup.createNonControllerEnabledSetToken(
               [setup.weth.address],
               [ether(1)],
-              [navIssuanceModule.address]
+              [customOracleNavIssuanceModule.address]
             );
 
             subjectSetToken = nonEnabledSetToken.address;
@@ -2854,14 +3064,14 @@ describe.only("NavIssuanceModule", () => {
 
         beforeEach(async () => {
           protocolDirectFee = ether(.02);
-          await setup.controller.addFee(navIssuanceModule.address, THREE, protocolDirectFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, THREE, protocolDirectFee);
 
           protocolManagerFee = ether(.3);
-          await setup.controller.addFee(navIssuanceModule.address, ONE, protocolManagerFee);
+          await setup.controller.addFee(customOracleNavIssuanceModule.address, ONE, protocolManagerFee);
         });
 
         async function subject(): Promise<any> {
-          return navIssuanceModule.connect(subjectCaller.wallet).redeemIntoEther(
+          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeemIntoEther(
             subjectSetToken,
             subjectSetTokenQuantity,
             subjectMinReserveQuantityReceived,
@@ -2999,7 +3209,7 @@ describe.only("NavIssuanceModule", () => {
       setToken = await setup.createSetToken(
         [setup.weth.address],
         [ether(1)],
-        [navIssuanceModule.address]
+        [customOracleNavIssuanceModule.address]
       );
 
       const managerIssuanceHook = await getRandomAddress();
@@ -3021,24 +3231,25 @@ describe.only("NavIssuanceModule", () => {
         managerIssuanceHook,
         managerRedemptionHook,
         reserveAssets,
+        setValuer: ADDRESS_ZERO,
         feeRecipient: managerFeeRecipient,
         managerFees,
         maxManagerFee,
         premiumPercentage,
         maxPremiumPercentage,
         minSetTokenSupply,
-      } as NAVIssuanceSettings;
+      } as CustomOracleNAVIssuanceSettings;
 
-      await navIssuanceModule.initialize(
+      await customOracleNavIssuanceModule.initialize(
         setToken.address,
         navIssuanceSettings
       );
 
       const protocolDirectFee = ether(.02);
-      await setup.controller.addFee(navIssuanceModule.address, TWO, protocolDirectFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, TWO, protocolDirectFee);
 
       const protocolManagerFee = ether(.3);
-      await setup.controller.addFee(navIssuanceModule.address, ZERO, protocolManagerFee);
+      await setup.controller.addFee(customOracleNavIssuanceModule.address, ZERO, protocolManagerFee);
     });
 
     describe("#addReserveAsset", async () => {
@@ -3051,19 +3262,19 @@ describe.only("NavIssuanceModule", () => {
       });
 
       async function subject(): Promise<any> {
-        return navIssuanceModule.connect(subjectCaller.wallet).addReserveAsset(subjectSetToken, subjectReserveAsset);
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).addReserveAsset(subjectSetToken, subjectReserveAsset);
       }
 
       it("should add the reserve asset", async () => {
         await subject();
-        const isReserveAssetAdded = await navIssuanceModule.isReserveAsset(subjectSetToken, subjectReserveAsset);
-        const reserveAssets = await navIssuanceModule.getReserveAssets(subjectSetToken);
+        const isReserveAssetAdded = await customOracleNavIssuanceModule.isReserveAsset(subjectSetToken, subjectReserveAsset);
+        const reserveAssets = await customOracleNavIssuanceModule.getReserveAssets(subjectSetToken);
         expect(isReserveAssetAdded).to.eq(true);
         expect(reserveAssets.length).to.eq(3);
       });
 
       it("should emit correct ReserveAssetAdded event", async () => {
-        await expect(subject()).to.emit(navIssuanceModule, "ReserveAssetAdded").withArgs(
+        await expect(subject()).to.emit(customOracleNavIssuanceModule, "ReserveAssetAdded").withArgs(
           subjectSetToken,
           subjectReserveAsset
         );
@@ -3094,20 +3305,20 @@ describe.only("NavIssuanceModule", () => {
       });
 
       async function subject(): Promise<any> {
-        return navIssuanceModule.connect(subjectCaller.wallet).removeReserveAsset(subjectSetToken, subjectReserveAsset);
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).removeReserveAsset(subjectSetToken, subjectReserveAsset);
       }
 
       it("should remove the reserve asset", async () => {
         await subject();
-        const isReserveAsset = await navIssuanceModule.isReserveAsset(subjectSetToken, subjectReserveAsset);
-        const reserveAssets = await navIssuanceModule.getReserveAssets(subjectSetToken);
+        const isReserveAsset = await customOracleNavIssuanceModule.isReserveAsset(subjectSetToken, subjectReserveAsset);
+        const reserveAssets = await customOracleNavIssuanceModule.getReserveAssets(subjectSetToken);
 
         expect(isReserveAsset).to.eq(false);
         expect(JSON.stringify(reserveAssets)).to.eq(JSON.stringify([setup.weth.address]));
       });
 
       it("should emit correct ReserveAssetRemoved event", async () => {
-        await expect(subject()).to.emit(navIssuanceModule, "ReserveAssetRemoved").withArgs(
+        await expect(subject()).to.emit(customOracleNavIssuanceModule, "ReserveAssetRemoved").withArgs(
           subjectSetToken,
           subjectReserveAsset
         );
@@ -3138,17 +3349,17 @@ describe.only("NavIssuanceModule", () => {
       });
 
       async function subject(): Promise<any> {
-        return navIssuanceModule.connect(subjectCaller.wallet).editPremium(subjectSetToken, subjectPremium);
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).editPremium(subjectSetToken, subjectPremium);
       }
 
       it("should edit the premium", async () => {
         await subject();
-        const retrievedPremium = await navIssuanceModule.getIssuePremium(subjectSetToken, ADDRESS_ZERO, ZERO);
+        const retrievedPremium = await customOracleNavIssuanceModule.getIssuePremium(subjectSetToken, ADDRESS_ZERO, ZERO);
         expect(retrievedPremium).to.eq(subjectPremium);
       });
 
       it("should emit correct PremiumEdited event", async () => {
-        await expect(subject()).to.emit(navIssuanceModule, "PremiumEdited").withArgs(
+        await expect(subject()).to.emit(customOracleNavIssuanceModule, "PremiumEdited").withArgs(
           subjectSetToken,
           subjectPremium
         );
@@ -3181,18 +3392,18 @@ describe.only("NavIssuanceModule", () => {
       });
 
       async function subject(): Promise<any> {
-        return navIssuanceModule.connect(subjectCaller.wallet).editManagerFee(subjectSetToken, subjectManagerFee, subjectFeeIndex);
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).editManagerFee(subjectSetToken, subjectManagerFee, subjectFeeIndex);
       }
 
       it("should edit the manager issue fee", async () => {
         await subject();
-        const managerIssueFee = await navIssuanceModule.getManagerFee(subjectSetToken, subjectFeeIndex);
+        const managerIssueFee = await customOracleNavIssuanceModule.getManagerFee(subjectSetToken, subjectFeeIndex);
 
         expect(managerIssueFee).to.eq(subjectManagerFee);
       });
 
       it("should emit correct ManagerFeeEdited event", async () => {
-        await expect(subject()).to.emit(navIssuanceModule, "ManagerFeeEdited").withArgs(
+        await expect(subject()).to.emit(customOracleNavIssuanceModule, "ManagerFeeEdited").withArgs(
           subjectSetToken,
           subjectManagerFee,
           subjectFeeIndex
@@ -3207,7 +3418,7 @@ describe.only("NavIssuanceModule", () => {
 
         it("should edit the manager redeem fee", async () => {
           await subject();
-          const managerRedeemFee = await navIssuanceModule.getManagerFee(subjectSetToken, subjectFeeIndex);
+          const managerRedeemFee = await customOracleNavIssuanceModule.getManagerFee(subjectSetToken, subjectFeeIndex);
 
           expect(managerRedeemFee).to.eq(subjectManagerFee);
         });
@@ -3238,17 +3449,17 @@ describe.only("NavIssuanceModule", () => {
       });
 
       async function subject(): Promise<any> {
-        return navIssuanceModule.connect(subjectCaller.wallet).editFeeRecipient(subjectSetToken, subjectFeeRecipient);
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).editFeeRecipient(subjectSetToken, subjectFeeRecipient);
       }
 
       it("should edit the manager fee recipient", async () => {
         await subject();
-        const navIssuanceSettings = await navIssuanceModule.navIssuanceSettings(subjectSetToken);
+        const navIssuanceSettings = await customOracleNavIssuanceModule.navIssuanceSettings(subjectSetToken);
         expect(navIssuanceSettings.feeRecipient).to.eq(subjectFeeRecipient);
       });
 
       it("should emit correct FeeRecipientEdited event", async () => {
-        await expect(subject()).to.emit(navIssuanceModule, "FeeRecipientEdited").withArgs(
+        await expect(subject()).to.emit(customOracleNavIssuanceModule, "FeeRecipientEdited").withArgs(
           subjectSetToken,
           subjectFeeRecipient
         );
@@ -3287,7 +3498,7 @@ describe.only("NavIssuanceModule", () => {
           const nonEnabledSetToken = await setup.createNonControllerEnabledSetToken(
             [setup.weth.address],
             [ether(1)],
-            [navIssuanceModule.address]
+            [customOracleNavIssuanceModule.address]
           );
 
           subjectSetToken = nonEnabledSetToken.address;
@@ -3302,7 +3513,7 @@ describe.only("NavIssuanceModule", () => {
     function shouldRevertIfModuleDisabled(subject: any) {
       describe("when the module is disabled", async () => {
         beforeEach(async () => {
-          await setToken.removeModule(navIssuanceModule.address);
+          await setToken.removeModule(customOracleNavIssuanceModule.address);
         });
 
         it("should revert", async () => {

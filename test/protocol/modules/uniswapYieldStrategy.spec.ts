@@ -108,7 +108,6 @@ describe("UniswapYieldStrategy", () => {
     const navIssueSettings: NAVIssuanceSettings = {
       managerIssuanceHook: ADDRESS_ZERO,
       managerRedemptionHook: ADDRESS_ZERO,
-      setValuer: ADDRESS_ZERO,
       reserveAssets: [setup.weth.address, setup.dai.address],
       feeRecipient: feeRecipient.address,
       managerFees: [ZERO, ether(.02)],

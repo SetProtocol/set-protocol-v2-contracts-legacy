@@ -28,6 +28,7 @@ import { SignedSafeMath } from "@openzeppelin/contracts/math/SignedSafeMath.sol"
 
 import { AddressArrayUtils } from "../../lib/AddressArrayUtils.sol";
 import { IController } from "../../interfaces/IController.sol";
+import { ISetValuer } from "../../interfaces/ISetValuer.sol";
 import { INAVIssuanceHook } from "../../interfaces/INAVIssuanceHook.sol";
 import { Invoke } from "../lib/Invoke.sol";
 import { ISetToken } from "../../interfaces/ISetToken.sol";
@@ -37,9 +38,8 @@ import { Position } from "../lib/Position.sol";
 import { PreciseUnitMath } from "../../lib/PreciseUnitMath.sol";
 import { ResourceIdentifier } from "../lib/ResourceIdentifier.sol";
 
-
 /**
- * @title NavIssuanceModule
+ * @title CustomOracleNavIssuanceModule
  * @author Set Protocol
  *
  * Module that enables issuance and redemption with any valid ERC20 token or ETH if allowed by the manager. Sender receives
@@ -47,7 +47,7 @@ import { ResourceIdentifier } from "../lib/ResourceIdentifier.sol";
  * oracle prices. Manager is able to enforce a premium / discount on issuance / redemption to avoid arbitrage and front
  * running when relying on oracle prices. Managers can charge a fee (denominated in reserve asset).
  */
-contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
+contract CustomOracleNavIssuanceModule is ModuleBase, ReentrancyGuard {
     using AddressArrayUtils for address[];
     using Invoke for ISetToken;
     using Position for ISetToken;
@@ -112,8 +112,9 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
     /* ============ Structs ============ */
 
     struct NAVIssuanceSettings {
-        INAVIssuanceHook managerIssuanceHook;      // Issuance hook configurations
-        INAVIssuanceHook managerRedemptionHook;    // Redemption hook configurations
+        INAVIssuanceHook managerIssuanceHook;          // Issuance hook configurations
+        INAVIssuanceHook managerRedemptionHook;        // Redemption hook configurations
+        ISetValuer setValuer;                          // Optional custom set valuer. If address(0) is provided, fetch the default one from the controller
         address[] reserveAssets;                       // Allowed reserve assets - Must have a price enabled with the price oracle
         address feeRecipient;                          // Manager fee recipient
         uint256[2] managerFees;                        // Manager fees. 0 index is issue and 1 index is redeem fee (0.01% = 1e14, 1% = 1e16)
@@ -953,9 +954,10 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
         uint256 premiumPercentage = _getIssuePremium(_setToken, _reserveAsset, _netReserveFlows);
         uint256 premiumValue = _netReserveFlows.preciseMul(premiumPercentage);
 
+        // If the set manager provided a custom valuer at initialization time, use it. Otherwise get it from the controller
         // Get valuation of the SetToken with the quote asset as the reserve asset. Returns value in precise units (1e18)
         // Reverts if price is not found
-        uint256 setTokenValuation = controller.getSetValuer().calculateSetTokenValuation(_setToken, _reserveAsset);
+        uint256 setTokenValuation = _getSetValuer(_setToken).calculateSetTokenValuation(_setToken, _reserveAsset);
 
         // Get reserve asset decimals
         uint256 reserveAssetDecimals = ERC20(_reserveAsset).decimals();
@@ -978,7 +980,7 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
     {
         // Get valuation of the SetToken with the quote asset as the reserve asset. Returns value in precise units (10e18)
         // Reverts if price is not found
-        uint256 setTokenValuation = controller.getSetValuer().calculateSetTokenValuation(_setToken, _reserveAsset);
+        uint256 setTokenValuation = _getSetValuer(_setToken).calculateSetTokenValuation(_setToken, _reserveAsset);
 
         uint256 totalRedeemValueInPreciseUnits = _setTokenQuantity.preciseMul(setTokenValuation);
         // Get reserve asset decimals
@@ -1111,5 +1113,14 @@ contract NavIssuanceModule is ModuleBase, ReentrancyGuard {
         if (address(preRedeemHook) != address(0)) {
             preRedeemHook.invokePreRedeemHook(_setToken, _setQuantity, _caller, _to);
         }
+    }
+
+    /**
+     * If a custom set valuer has been configured, use it. Otherwise fetch the default one form the
+     * controller.
+     */
+    function _getSetValuer(ISetToken _setToken) internal view returns (ISetValuer) {
+        ISetValuer customValuer =  navIssuanceSettings[_setToken].setValuer;
+        return address(customValuer) == address(0) ? controller.getSetValuer() : customValuer;
     }
 }

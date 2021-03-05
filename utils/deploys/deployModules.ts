@@ -8,6 +8,7 @@ import {
   GovernanceModule,
   IssuanceModule,
   NavIssuanceModule,
+  CustomOracleNavIssuanceModule,
   SingleIndexModule,
   StakingModule,
   StreamingFeeModule,
@@ -24,6 +25,7 @@ import { ClaimModule__factory } from "../../typechain/factories/ClaimModule__fac
 import { GovernanceModule__factory } from "../../typechain/factories/GovernanceModule__factory";
 import { IssuanceModule__factory } from "../../typechain/factories/IssuanceModule__factory";
 import { NavIssuanceModule__factory } from "../../typechain/factories/NavIssuanceModule__factory";
+import { CustomOracleNavIssuanceModule__factory } from "../../typechain/factories/CustomOracleNavIssuanceModule__factory";
 import { SingleIndexModule__factory } from "../../typechain/factories/SingleIndexModule__factory";
 import { StakingModule__factory } from "../../typechain/factories/StakingModule__factory";
 import { StreamingFeeModule__factory } from "../../typechain/factories/StreamingFeeModule__factory";
@@ -68,6 +70,10 @@ export default class DeployModules {
 
   public async deployNavIssuanceModule(controller: Address, weth: Address): Promise<NavIssuanceModule> {
     return await new NavIssuanceModule__factory(this._deployerSigner).deploy(controller, weth);
+  }
+
+  public async deployCustomOracleNavIssuanceModule(controller: Address, weth: Address): Promise<CustomOracleNavIssuanceModule> {
+    return await new CustomOracleNavIssuanceModule__factory(this._deployerSigner).deploy(controller, weth);
   }
 
   public async deployTradeModule(controller: Address): Promise<TradeModule> {

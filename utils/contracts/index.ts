@@ -33,6 +33,7 @@ export { NAVIssuanceCaller } from "../../typechain/NAVIssuanceCaller";
 export { NAVIssuanceHookMock } from "../../typechain/NAVIssuanceHookMock";
 export { CustomSetValuerMock } from "../../typechain/CustomSetValuerMock";
 export { NavIssuanceModule } from "../../typechain/NavIssuanceModule";
+export { CustomOracleNavIssuanceModule } from "../../typechain/CustomOracleNavIssuanceModule";
 export { OneInchExchangeAdapter } from "../../typechain/OneInchExchangeAdapter";
 export { OneInchExchangeMock } from "../../typechain/OneInchExchangeMock";
 export { OracleAdapterMock } from "../../typechain/OracleAdapterMock";
