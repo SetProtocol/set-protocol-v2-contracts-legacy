@@ -32,17 +32,8 @@ export interface AirdropSettings {
   anyoneAbsorb: boolean;
 }
 
-export interface CustomOracleNAVIssuanceSettings {
-  managerIssuanceHook: Address;
-  managerRedemptionHook: Address;
+export interface CustomOracleNAVIssuanceSettings extends NAVIssuanceSettings {
   setValuer: Address;
-  reserveAssets: Address[];
-  feeRecipient: Address;
-  managerFees: [BigNumber, BigNumber];
-  maxManagerFee: BigNumber;
-  premiumPercentage: BigNumber;
-  maxPremiumPercentage: BigNumber;
-  minSetTokenSupply: BigNumber;
 }
 
 export interface NAVIssuanceSettings {

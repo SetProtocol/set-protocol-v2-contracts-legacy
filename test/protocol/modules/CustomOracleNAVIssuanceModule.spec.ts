@@ -5,7 +5,7 @@ import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Address, CustomOracleNAVIssuanceSettings } from "@utils/types";
 import { Account } from "@utils/test/types";
 import { ONE, TWO, THREE, ZERO, ADDRESS_ZERO } from "@utils/constants";
-import { ManagerIssuanceHookMock, NAVIssuanceHookMock, CustomOracleNavIssuanceModule, SetToken, CustomSetValuerMock } from "@utils/contracts";
+import { ManagerIssuanceHookMock, NAVIssuanceHookMock, CustomOracleNavIssuanceModule, SetToken, CustomSetValuerMock, ISetValuer } from "@utils/contracts";
 import DeployHelper from "@utils/deploys";
 import {
   bitcoin,
@@ -1198,6 +1198,7 @@ describe("CustomOracleNavIssuanceModule", () => {
     let subjectTo: Account;
     let subjectCaller: Account;
     let setValuerAddress: Address;
+    let setValuerMock: ISetValuer;
 
     let navIssuanceSettings: CustomOracleNAVIssuanceSettings;
     let managerIssuanceHook: Address;
@@ -1261,27 +1262,47 @@ describe("CustomOracleNavIssuanceModule", () => {
         subjectCaller = owner;
       });
 
+      async function subject(): Promise<any> {
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).issue(
+          subjectSetToken,
+          subjectReserveAsset,
+          subjectReserveQuantity,
+          subjectMinSetTokenReceived,
+          subjectTo.address
+        );
+      }
+
       context("when using a custom valuer", () => {
         before(async () => {
           managerIssuanceHook = ADDRESS_ZERO;
           // Set fees to 0
           managerFees = [ether(0), ether(0)];
           premiumPercentage = ether(0);
-          const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+          setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
           // set valued at $500 by the custom set valuer
-          // which values ETH at 200 usd and usdc at 1 usd
           await setValuerMock.setValuation(setup.usdc.address, ether(370));
           await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
           setValuerAddress = setValuerMock.address;
         });
-
-        const subject = () => customOracleNavIssuanceModule.issue(setToken.address, setup.usdc.address, usdc(296), ether("0.8"), owner.address);
+        beforeEach(() => {
+          subjectReserveQuantity = usdc(296);
+          subjectMinSetTokenReceived = ether("0.8");
+        });
 
         it("should use the custom valuer to compute the issue amount", async() => {
-          const oldBalance: BigNumber = await setToken.balanceOf(owner.address);
+          const expectedSetTokenIssueQuantity = await getExpectedSetTokenIssueQuantity(
+            setToken,
+            setValuerMock,
+            subjectReserveAsset,
+            usdc(1), // USDC base units 10^6
+            subjectReserveQuantity,
+            managerFees[0],
+            ZERO, // Protocol direct fee
+            premiumPercentage
+          );
           await subject();
-          const newBalance: BigNumber = await setToken.balanceOf(owner.address);
-          expect(newBalance.sub(oldBalance)).to.eq(ether("0.8"));
+          const issuedBalance = await setToken.balanceOf(recipient.address);
+          expect(issuedBalance).to.eq(expectedSetTokenIssueQuantity);
         });
       });
 
@@ -1294,16 +1315,6 @@ describe("CustomOracleNavIssuanceModule", () => {
           // Set premium percentage to 50 bps
           premiumPercentage = ether(0.005);
         });
-
-        async function subject(): Promise<any> {
-          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).issue(
-            subjectSetToken,
-            subjectReserveAsset,
-            subjectReserveQuantity,
-            subjectMinSetTokenReceived,
-            subjectTo.address
-          );
-        }
 
         it("should issue the Set to the recipient", async () => {
           const expectedSetTokenIssueQuantity = await getExpectedSetTokenIssueQuantity(
@@ -2188,6 +2199,7 @@ describe("CustomOracleNavIssuanceModule", () => {
 
     let navIssuanceSettings: CustomOracleNAVIssuanceSettings;
     let setValuerAddress: Address;
+    let setValuerMock: ISetValuer;
     let managerRedemptionHook: Address;
     let managerFees: BigNumber[];
     let premiumPercentage: BigNumber;
@@ -2248,6 +2260,16 @@ describe("CustomOracleNavIssuanceModule", () => {
         subjectCaller = owner;
       });
 
+      async function subject(): Promise<any> {
+        return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeem(
+          subjectSetToken,
+          subjectReserveAsset,
+          subjectSetTokenQuantity,
+          subjectMinReserveQuantityReceived,
+          subjectTo.address
+        );
+      }
+
       context("when using a custom set valuer", () => {
         before(async () => {
           managerRedemptionHook = ADDRESS_ZERO;
@@ -2255,22 +2277,34 @@ describe("CustomOracleNavIssuanceModule", () => {
           managerFees = [ether(0), ether(0)];
           // Set premium percentage to 50 bps
           premiumPercentage = ether(0);
-          const setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
+          setValuerMock = await deployer.mocks.deployCustomSetValuerMock();
           // set valued at $500 by the custom set valuer
-          // which values ETH at 200 usd and usdc at 1 usd
           await setValuerMock.setValuation(setup.usdc.address, ether(370));
           await setValuerMock.setValuation(setup.weth.address, ether(1.85)); // 370/200
           setValuerAddress = setValuerMock.address;
         });
-
-        const  subject = () =>
-          customOracleNavIssuanceModule.redeem(setToken.address, setup.usdc.address, ether("1.3"), usdc(481), owner.address);
+        beforeEach(() => {
+          subjectSetTokenQuantity = ether("1.3");
+          subjectMinReserveQuantityReceived = usdc(481);
+        });
 
         it("should use the custom valuer to compute the redeem amount", async() => {
-          const oldBalance: BigNumber = await setup.usdc.balanceOf(owner.address);
           await subject();
-          const newBalance: BigNumber = await setup.usdc.balanceOf(owner.address);
-          expect(newBalance.sub(oldBalance)).to.eq(usdc(481));
+          const issuedBalance = await setup.usdc.balanceOf(subjectTo.address);
+          const setTokenValuation = await setValuerMock.calculateSetTokenValuation(
+            subjectSetToken,
+            subjectReserveAsset
+          );
+
+          const expectedUSDCBalance = getExpectedReserveRedeemQuantity(
+            subjectSetTokenQuantity,
+            setTokenValuation,
+            usdc(1), // USDC base units
+            managerFees[1],
+            ZERO, // Protocol fee percentage
+            premiumPercentage
+          );
+          expect(issuedBalance).to.eq(expectedUSDCBalance);
         });
       });
 
@@ -2283,16 +2317,6 @@ describe("CustomOracleNavIssuanceModule", () => {
           // Set premium percentage to 50 bps
           premiumPercentage = ether(0.005);
         });
-
-        async function subject(): Promise<any> {
-          return customOracleNavIssuanceModule.connect(subjectCaller.wallet).redeem(
-            subjectSetToken,
-            subjectReserveAsset,
-            subjectSetTokenQuantity,
-            subjectMinReserveQuantityReceived,
-            subjectTo.address
-          );
-        }
 
         it("should reduce the SetToken supply", async () => {
           const previousSupply = await setToken.totalSupply();
