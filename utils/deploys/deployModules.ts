@@ -138,7 +138,7 @@ export default class DeployModules {
     return await new GovernanceModule__factory(this._deployerSigner).deploy(controller);
   }
 
-  public async deploySnapshotDelegationModule(controller: Address): Promise<SnapshotDelegationModule> {
-    return await new SnapshotDelegationModule__factory(this._deployerSigner).deploy(controller);
+  public async deploySnapshotDelegationModule(controller: Address, delegateRegistry: Address): Promise<SnapshotDelegationModule> {
+    return await new SnapshotDelegationModule__factory(this._deployerSigner).deploy(controller, delegateRegistry);
   }
 }
