@@ -9,7 +9,6 @@ import {
   IssuanceModule,
   NavIssuanceModule,
   SingleIndexModule,
-  SnapshotDelegationModule,
   StakingModule,
   StreamingFeeModule,
   TradeModule,
@@ -26,7 +25,6 @@ import { GovernanceModule__factory } from "../../typechain/factories/GovernanceM
 import { IssuanceModule__factory } from "../../typechain/factories/IssuanceModule__factory";
 import { NavIssuanceModule__factory } from "../../typechain/factories/NavIssuanceModule__factory";
 import { SingleIndexModule__factory } from "../../typechain/factories/SingleIndexModule__factory";
-import { SnapshotDelegationModule__factory } from "../../typechain/factories/SnapshotDelegationModule__factory";
 import { StakingModule__factory } from "../../typechain/factories/StakingModule__factory";
 import { StreamingFeeModule__factory } from "../../typechain/factories/StreamingFeeModule__factory";
 import { TradeModule__factory } from "../../typechain/factories/TradeModule__factory";
@@ -136,9 +134,5 @@ export default class DeployModules {
 
   public async deployGovernanceModule(controller: Address): Promise<GovernanceModule> {
     return await new GovernanceModule__factory(this._deployerSigner).deploy(controller);
-  }
-
-  public async deploySnapshotDelegationModule(controller: Address, delegateRegistry: Address): Promise<SnapshotDelegationModule> {
-    return await new SnapshotDelegationModule__factory(this._deployerSigner).deploy(controller, delegateRegistry);
   }
 }
