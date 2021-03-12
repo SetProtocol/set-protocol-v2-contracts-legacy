@@ -11,6 +11,7 @@ import {
   UniswapPairPriceAdapter,
   UniswapV2ExchangeAdapter,
   ZeroExApiAdapter,
+  SnapshotGovernanceAdapter
 } from "../contracts";
 
 import { Address, Bytes } from "./../types";
@@ -25,6 +26,7 @@ import { AaveMigrationWrapAdapter__factory } from "../../typechain/factories/Aav
 import { AaveWrapAdapter__factory } from "../../typechain/factories/AaveWrapAdapter__factory";
 import { UniswapPairPriceAdapter__factory } from "../../typechain/factories/UniswapPairPriceAdapter__factory";
 import { UniswapV2ExchangeAdapter__factory } from "../../typechain/factories/UniswapV2ExchangeAdapter__factory";
+import { SnapshotGovernanceAdapter__factory } from "../../typechain/factories/SnapshotGovernanceAdapter__factory";
 
 export default class DeployAdapters {
   private _deployerSigner: Signer;
@@ -91,5 +93,9 @@ export default class DeployAdapters {
 
   public async deployZeroExApiAdapter(zeroExAddress: Address): Promise<ZeroExApiAdapter> {
     return await new ZeroExApiAdapter__factory(this._deployerSigner).deploy(zeroExAddress);
+  }
+
+  public async deploySnapshotGovernanceAdapter(delegateRegistry: Address): Promise<SnapshotGovernanceAdapter> {
+    return await new SnapshotGovernanceAdapter__factory(this._deployerSigner).deploy(delegateRegistry);
   }
 }
