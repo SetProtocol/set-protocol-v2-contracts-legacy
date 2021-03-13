@@ -37,6 +37,7 @@ import {
   AaveGovernanceV2,
   AavePropositionPower,
   AaveProtoGovernance,
+  AaveTokenV2Mintable,
   AssetVotingWeightProvider,
   CoreLibrary,
   DefaultReserveInterestRateStrategy,
@@ -52,6 +53,7 @@ import {
 } from "../contracts/aave";
 
 import { AaveGovernanceV2__factory } from "../../typechain/factories/AaveGovernanceV2__factory";
+import { AaveTokenV2Mintable__factory } from "../../typechain/factories/AaveTokenV2Mintable__factory";
 import { Executor__factory } from "../../typechain/factories/Executor__factory";
 import { GovernanceStrategy__factory } from "../../typechain/factories/GovernanceStrategy__factory";
 import { AavePropositionPower__factory } from "../../typechain/factories/AavePropositionPower__factory";
@@ -362,6 +364,10 @@ export default class DeployExternalContracts {
 
   public async deployGovernanceStrategy(_aave: Address, _stkaave: Address): Promise<GovernanceStrategy> {
     return await new GovernanceStrategy__factory(this._deployerSigner).deploy(_aave, _stkaave);
+  }
+
+  public async deployAaveTokenV2Mintable(): Promise<AaveTokenV2Mintable> {
+    return await new AaveTokenV2Mintable__factory(this._deployerSigner).deploy();
   }
 
   // Curve

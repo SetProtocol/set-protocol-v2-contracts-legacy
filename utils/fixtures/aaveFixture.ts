@@ -30,6 +30,7 @@ import { ether } from "../common";
 
 import { AToken__factory } from "../../typechain/factories/AToken__factory";
 import { MAX_UINT_256 } from "@utils/constants";
+import { AaveV2Mintable } from "@typechain/AaveV2Mintable";
 
 export class AaveFixture {
   private _deployer: DeployHelper;
@@ -45,7 +46,7 @@ export class AaveFixture {
   public lendingPoolDataProvider: LendingPoolDataProvider;
   public lendToAaveMigrator: LendToAaveMigrator;
   public lendToken: StandardTokenMock;
-  public aaveToken: StandardTokenMock;
+  public aaveToken: AaveV2Mintable;
   public stkAaveToken: StandardTokenMock;
   public aaveExchangeRatio: BigNumber;
   public ethTokenAddress: Address = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
@@ -99,7 +100,8 @@ export class AaveFixture {
 
     // Deploy migration
     this.lendToken = await this._deployer.mocks.deployTokenMock(await this._ownerSigner.getAddress(), ether(1000000), 18);
-    this.aaveToken = await this._deployer.mocks.deployTokenMock(await this._ownerSigner.getAddress(), ether(10000), 18);
+    this.aaveToken = await this._deployer.external.deployAaveTokenV2Mintable();
+    await this.aaveToken.mint(await this._ownerSigner.getAddress(), ether(10000));
     this.aaveExchangeRatio = BigNumber.from(100); // 100:1 LEND to AAVE ratio
     this.lendToAaveMigrator = await this._deployer.external.deployLendToAaveMigrator(
       this.aaveToken.address,

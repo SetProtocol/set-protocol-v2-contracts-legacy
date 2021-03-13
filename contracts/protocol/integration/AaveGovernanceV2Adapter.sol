@@ -26,7 +26,7 @@ pragma experimental "ABIEncoderV2";
  *
  * Governance adapter for Aave governance that returns data for voting
  */
-contract AaveGovernanceAdapter {
+contract AaveGovernanceV2Adapter {
 
     /* ============ Constants ============ */
 
@@ -37,7 +37,7 @@ contract AaveGovernanceAdapter {
     string public constant VOTE_SIGNATURE = "submitVote(uint256,bool)";
 
     // Signature of propose function
-    string public constant PROPOSE_SIGNATURE = "create(address,address[],uint256[],bytes[],bytes[],bool[],bytes32)";
+    string public constant PROPOSE_SIGNATURE = "create(address,address[],uint256[],string[],bytes[],bool[],bytes32)";
 
     /* ============ State Variables ============ */
 
@@ -105,11 +105,11 @@ contract AaveGovernanceAdapter {
             address executor,
             address[] memory targets,
             uint256[] memory values,
-            bytes[] memory signatures,
+            string[] memory signatures,
             bytes[] memory calldatas,
             bool[] memory withDelegateCalls,
-            bytes memory ipfsHash
-        ) = abi.decode(_proposalData, (address,address[],uint256[],bytes[],bytes[],bool[],bytes));
+            bytes32 ipfsHash
+        ) = abi.decode(_proposalData, (address,address[],uint256[],string[],bytes[],bool[],bytes32));
 
         bytes memory callData = abi.encodeWithSignature(
             PROPOSE_SIGNATURE,
