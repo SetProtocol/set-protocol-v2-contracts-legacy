@@ -19,6 +19,9 @@ import {
   LendingRateOracle,
   LendingPoolDataProvider,
   LendToAaveMigrator,
+  AaveGovernanceV2,
+  Executor,
+  GovernanceStrategy
 } from "../contracts/aave";
 
 import { StandardTokenMock } from "../contracts";
@@ -26,6 +29,7 @@ import { StandardTokenMock } from "../contracts";
 import { ether } from "../common";
 
 import { AToken__factory } from "../../typechain/factories/AToken__factory";
+import { MAX_UINT_256 } from "@utils/constants";
 
 export class AaveFixture {
   private _deployer: DeployHelper;
@@ -42,12 +46,16 @@ export class AaveFixture {
   public lendToAaveMigrator: LendToAaveMigrator;
   public lendToken: StandardTokenMock;
   public aaveToken: StandardTokenMock;
+  public stkAaveToken: StandardTokenMock;
   public aaveExchangeRatio: BigNumber;
   public ethTokenAddress: Address = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   public aaveProtoGovernance: AaveProtoGovernance;
   public aavePropositionPower: AavePropositionPower;
   public assetVotingWeightPower: AssetVotingWeightProvider;
   public governanceParamsProvider: GovernanceParamsProvider;
+  public aaveGovernanceV2: AaveGovernanceV2;
+  public executor: Executor;
+  public governanceStrategy: GovernanceStrategy;
 
   constructor(provider: Web3Provider | JsonRpcProvider, ownerAddress: Address) {
     this._ownerSigner = provider.getSigner(ownerAddress);
@@ -123,6 +131,27 @@ export class AaveFixture {
     await this.aaveToken.transfer(this.lendToAaveMigrator.address, ether(100));
 
     await this.lendToAaveMigrator.initialize();
+
+    // Deploy governance V2
+    this.executor = await this._deployer.external.deployExecutor(
+      await this._ownerSigner.getAddress(),
+      BigNumber.from(0),
+      BigNumber.from(0),
+      BigNumber.from(0),
+      MAX_UINT_256,
+      BigNumber.from(50),
+      BigNumber.from(100),
+      BigNumber.from(50),
+      ether(100)
+    );
+    this.stkAaveToken = await this._deployer.mocks.deployTokenMock(await this._ownerSigner.getAddress(), ether(10000), 18);
+    this.governanceStrategy = await this._deployer.external.deployGovernanceStrategy(this.aaveToken.address, this.stkAaveToken.address);
+    this.aaveGovernanceV2 =  await this._deployer.external.deployAaveGovernanceV2(
+      this.governanceStrategy.address,
+      BigNumber.from(0),
+      await this._ownerSigner.getAddress(),
+      [this.executor.address]
+    );
   }
 
   public async deployAToken(_underlyingAsset: Address, _decimals: BigNumberish = 18): Promise<AToken> {
