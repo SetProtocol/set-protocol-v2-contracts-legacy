@@ -31,6 +31,7 @@ import { ether } from "../common";
 import { AToken__factory } from "../../typechain/factories/AToken__factory";
 import { MAX_UINT_256 } from "@utils/constants";
 import { AaveV2Mintable } from "@typechain/AaveV2Mintable";
+import { getRandomAddress } from "@utils/test";
 
 export class AaveFixture {
   private _deployer: DeployHelper;
@@ -47,7 +48,7 @@ export class AaveFixture {
   public lendToAaveMigrator: LendToAaveMigrator;
   public lendToken: StandardTokenMock;
   public aaveToken: AaveV2Mintable;
-  public stkAaveToken: StandardTokenMock;
+  public stkAaveToken: AaveV2Mintable;
   public aaveExchangeRatio: BigNumber;
   public ethTokenAddress: Address = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   public aaveProtoGovernance: AaveProtoGovernance;
@@ -101,7 +102,7 @@ export class AaveFixture {
     // Deploy migration
     this.lendToken = await this._deployer.mocks.deployTokenMock(await this._ownerSigner.getAddress(), ether(1000000), 18);
     this.aaveToken = await this._deployer.external.deployAaveTokenV2Mintable();
-    await this.aaveToken.mint(await this._ownerSigner.getAddress(), ether(10000));
+    await this.aaveToken.mint(await this._ownerSigner.getAddress(), ether(100000));
     this.aaveExchangeRatio = BigNumber.from(100); // 100:1 LEND to AAVE ratio
     this.lendToAaveMigrator = await this._deployer.external.deployLendToAaveMigrator(
       this.aaveToken.address,
@@ -146,7 +147,8 @@ export class AaveFixture {
       BigNumber.from(50),
       ether(100)
     );
-    this.stkAaveToken = await this._deployer.mocks.deployTokenMock(await this._ownerSigner.getAddress(), ether(10000), 18);
+    this.stkAaveToken = await this._deployer.external.deployAaveTokenV2Mintable();
+    this.stkAaveToken.mint(await this._ownerSigner.getAddress(), ether(100000));
     this.governanceStrategy = await this._deployer.external.deployGovernanceStrategy(this.aaveToken.address, this.stkAaveToken.address);
     this.aaveGovernanceV2 =  await this._deployer.external.deployAaveGovernanceV2(
       this.governanceStrategy.address,
@@ -154,6 +156,8 @@ export class AaveFixture {
       await this._ownerSigner.getAddress(),
       [this.executor.address]
     );
+    this.aaveToken.connect(this._ownerSigner).transfer(await getRandomAddress(), 100);
+    this.stkAaveToken.connect(this._ownerSigner).transfer(await getRandomAddress(), 100);
   }
 
   public async deployAToken(_underlyingAsset: Address, _decimals: BigNumberish = 18): Promise<AToken> {
