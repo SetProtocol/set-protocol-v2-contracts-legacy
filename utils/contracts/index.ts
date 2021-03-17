@@ -24,7 +24,6 @@ export { ExplicitERC20Mock } from "../../typechain/ExplicitERC20Mock";
 export { DebtIssuanceMock } from "../../typechain/DebtIssuanceMock";
 export { DebtIssuanceModule } from "../../typechain/DebtIssuanceModule";
 export { DebtModuleMock } from "../../typechain/DebtModuleMock";
-export { ExplicitERC20Mock } from "../../typechain/ExplicitERC20Mock";
 export { GaugeControllerMock } from "../../typechain/GaugeControllerMock";
 export { GodModeMock } from "../../typechain/GodModeMock";
 export { GovernanceAdapterMock } from "../../typechain/GovernanceAdapterMock";
