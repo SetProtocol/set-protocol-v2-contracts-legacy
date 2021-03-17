@@ -45,6 +45,7 @@
   "license": "MIT",
   "homepage": "https://github.com/SetProtocol",
   "devDependencies": {
+    "@aave/aave-token": "^1.0.4",
     "@ethersproject/bignumber": "^5.0.12",
     "@ethersproject/providers": "^5.0.17",
     "@nomiclabs/hardhat-ethers": "^2.0.1",

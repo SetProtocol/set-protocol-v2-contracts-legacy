@@ -1,6 +1,9 @@
 // External Aave Contracts
 export { AavePropositionPower } from "../../typechain/AavePropositionPower";
 export { AaveProtoGovernance } from "../../typechain/AaveProtoGovernance";
+export { AaveGovernanceV2 } from "../../typechain/AaveGovernanceV2";
+export { GovernanceStrategy } from "../../typechain/GovernanceStrategy";
+export { Executor } from "../../typechain/Executor";
 export { AssetVotingWeightProvider } from "../../typechain/AssetVotingWeightProvider";
 export { AToken } from "../../typechain/AToken";
 export { DefaultReserveInterestRateStrategy } from "../../typechain/DefaultReserveInterestRateStrategy";
