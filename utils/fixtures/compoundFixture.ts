@@ -13,6 +13,7 @@ import {
   PriceOracleProxy,
   Unitroller,
   WhitePaperInterestRateModel,
+  CompoundGovernorBravo,
 } from "../contracts/compound";
 import DeployHelper from "../deploys";
 import {
@@ -36,6 +37,7 @@ export class CompoundFixture {
   public comp: Comp;
   public compoundTimelock: CompoundTimelock;
   public compoundGovernorAlpha: CompoundGovernorAlpha;
+  public compoundGovernorBravo: CompoundGovernorBravo;
   public comptroller: Comptroller;
   public interestRateModel: WhitePaperInterestRateModel;
 
@@ -90,6 +92,16 @@ export class CompoundFixture {
       this.comp.address,
       this._ownerAddress
     );
+
+    this.compoundGovernorBravo = await this._deployer.external.deployCompoundGovernorBravo();
+    await this.compoundGovernorBravo.initialize(
+      this.compoundTimelock.address,
+      this.comp.address,
+      ONE_DAY_IN_SECONDS.mul(2),
+      ONE_DAY_IN_SECONDS.mul(2),
+      ether(100000),
+    );
+    await this.compoundGovernorBravo._initiate(this.compoundGovernorAlpha.address);
   }
 
   public async createAndEnableCToken(

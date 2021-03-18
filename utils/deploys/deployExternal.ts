@@ -6,6 +6,7 @@ import {
   CompoundPriceOracleMock,
   Comp,
   CompoundGovernorAlpha,
+  CompoundGovernorBravo,
   CompoundTimelock,
   Comptroller,
   CERc20,
@@ -26,6 +27,7 @@ import { CEther__factory } from "../../typechain/factories/CEther__factory";
 import { CompoundPriceOracleMock__factory } from "../../typechain/factories/CompoundPriceOracleMock__factory";
 import { Comp__factory } from "../../typechain/factories/Comp__factory";
 import { CompoundGovernorAlpha__factory } from "../../typechain/factories/CompoundGovernorAlpha__factory";
+import { CompoundGovernorBravo__factory } from "../../typechain/factories/CompoundGovernorBravo__factory";
 import { CompoundTimelock__factory } from "../../typechain/factories/CompoundTimelock__factory";
 import { Comptroller__factory } from "../../typechain/factories/Comptroller__factory";
 import { PriceOracleProxy__factory } from "../../typechain/factories/PriceOracleProxy__factory";
@@ -130,6 +132,10 @@ export default class DeployExternalContracts {
 
   public async deployCompoundGovernorAlpha(_timelock: Address, _comp: Address, _guardian: Address): Promise<CompoundGovernorAlpha> {
     return await new CompoundGovernorAlpha__factory(this._deployerSigner).deploy(_timelock, _comp, _guardian);
+  }
+
+  public async deployCompoundGovernorBravo(): Promise<CompoundGovernorBravo> {
+    return await new CompoundGovernorBravo__factory(this._deployerSigner).deploy();
   }
 
   public async deployCeRc20(
