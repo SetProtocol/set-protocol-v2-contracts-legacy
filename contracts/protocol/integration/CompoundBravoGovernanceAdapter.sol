@@ -21,12 +21,12 @@ pragma experimental "ABIEncoderV2";
 
 
 /**
- * @title CompoundLikeGovernanceAdapter
+ * @title CompoundBravoGovernanceAdapter
  * @author Set Protocol
  *
- * Governance adapter for Compound-like governance systems (e.g. Uniswap) that returns data for voting, delegating and making proposals
+ * Governance adapter for Compound Bravo governance system that returns data for voting, delegating and making proposals
  */
-contract CompoundLikeGovernanceAdapter {
+contract CompoundBravoGovernanceAdapter {
 
     /* ============ Constants ============ */
 
@@ -43,19 +43,19 @@ contract CompoundLikeGovernanceAdapter {
     // Address of governance token
     address public immutable governanceToken;
 
-    // Address of Compound-like Governor Alpha contract
-    address public immutable governorAlpha;
+    // Address of Compound Governor Bravo contract
+    address public immutable governorBravo;
 
     /* ============ Constructor ============ */
 
     /**
      * Set state variables
      *
-     * @param _governorAlpha    Address of Governor Alpha contract
+     * @param _governorBravo    Address of Governor Bravo contract
      * @param _governanceToken  Address of governance token
      */
-    constructor(address _governorAlpha, address _governanceToken) public {
-        governorAlpha = _governorAlpha;
+    constructor(address _governorBravo, address _governanceToken) public {
+        governorBravo = _governorBravo;
         governanceToken = _governanceToken;
     }
 
@@ -76,7 +76,7 @@ contract CompoundLikeGovernanceAdapter {
         uint8 supportNumber = _support ? 1 : 0;
         bytes memory callData = abi.encodeWithSignature("castVote(uint256,uint8)", _proposalId, supportNumber);
 
-        return (governorAlpha, 0, callData);
+        return (governorBravo, 0, callData);
     }
 
     /**
@@ -148,6 +148,6 @@ contract CompoundLikeGovernanceAdapter {
         // propose(address[],uint256[],string[],bytes[],string)
         bytes memory callData = abi.encodeWithSignature(PROPOSE_SIGNATURE, targets, values, signatures, calldatas, description);
 
-        return (governorAlpha, 0, callData);
+        return (governorBravo, 0, callData);
     }
 }
