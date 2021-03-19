@@ -19,7 +19,7 @@ import { CompoundFixture } from "@utils/fixtures";
 
 const expect = getWaffleExpect();
 
-describe("CompoundLikeGovernanceAdapter", () => {
+describe("CompoundBravoGovernanceAdapter", () => {
   let owner: Account;
   let deployer: DeployHelper;
   let compoundBravoGovernanceAdapter: CompoundBravoGovernanceAdapter;
@@ -40,6 +40,7 @@ describe("CompoundLikeGovernanceAdapter", () => {
 
     compoundSetup = getCompoundFixture(owner.address);
     await compoundSetup.initialize();
+    await compoundSetup.initializeGovernorBravo();
 
     compoundBravoGovernanceAdapter = await deployer.adapters.deployCompoundBravoGovernanceAdapter(
       compoundSetup.compoundGovernorBravoDelegator.address,
