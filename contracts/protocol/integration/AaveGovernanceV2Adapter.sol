@@ -1,5 +1,5 @@
 /*
-    Copyright 2020 Set Labs Inc.
+    Copyright 2021 Set Labs Inc.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ pragma experimental "ABIEncoderV2";
  * @title AaveGovernanceV2Adapter
  * @author Noah Citron
  *
- * Governance adapter for Aave governance that returns data for voting
+ * Governance adapter for Aave governance that returns data for voting, delegating, and creating proposals
  */
 contract AaveGovernanceV2Adapter {
 
@@ -44,7 +44,7 @@ contract AaveGovernanceV2Adapter {
     // Address of Aave proto governance contract
     address public immutable aaveGovernanceV2;
 
-    // Address of the Aaave token
+    // Address of the Aave token
     address public immutable aaveToken;
 
     /* ============ Constructor ============ */
@@ -77,8 +77,7 @@ contract AaveGovernanceV2Adapter {
     }
 
     /**
-     * Generates the calldata to delegate votes to another ETH address. Self and zero address allowed, which is equivalent to registering and revoking in Compound
-     * like governance systems.
+     * Generates the calldata to delegate votes to another ETH address. Self and zero address allowed, which is equivalent to registering and revoking in Aave.
      *
      * @param _delegatee            Address of the delegatee
      *
@@ -92,7 +91,12 @@ contract AaveGovernanceV2Adapter {
     }
 
     /**
-     * Generates the calldata to create a new proposal
+     * Generates the calldata to create a new proposal.
+     * The caller must have proposition power higher than PROPOSITION_THRESHOLD to create a proposal.
+     * Executor is a contract deployed to validate proposal creation and voting.
+     * There two types of proposals and each has it's own executor.
+     * Critical proposals that affect governance consensus (long) and proposals affecting only protocol parameters (short).
+     * https://docs.aave.com/developers/protocol-governance/governance#proposal-types
      *
      * @param _proposalData         Byte data containing data about the proposal
      *
