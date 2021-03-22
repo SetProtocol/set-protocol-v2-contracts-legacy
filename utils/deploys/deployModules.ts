@@ -1,13 +1,17 @@
 import { Signer } from "ethers";
+import { convertLibraryNameToLinkId } from "../common";
 
 import {
   AirdropModule,
   AmmModule,
   BasicIssuanceModule,
+  CompoundLeverageModule,
   ClaimModule,
+  DebtIssuanceModule,
   GovernanceModule,
   IssuanceModule,
   NavIssuanceModule,
+  CustomOracleNavIssuanceModule,
   SingleIndexModule,
   StakingModule,
   StreamingFeeModule,
@@ -20,10 +24,13 @@ import { Address } from "../types";
 import { AirdropModule__factory } from "../../typechain/factories/AirdropModule__factory";
 import { AmmModule__factory } from "../../typechain/factories/AmmModule__factory";
 import { BasicIssuanceModule__factory } from "../../typechain/factories/BasicIssuanceModule__factory";
+import { CompoundLeverageModule__factory } from "../../typechain/factories/CompoundLeverageModule__factory";
 import { ClaimModule__factory } from "../../typechain/factories/ClaimModule__factory";
+import { DebtIssuanceModule__factory } from "../../typechain/factories/DebtIssuanceModule__factory";
 import { GovernanceModule__factory } from "../../typechain/factories/GovernanceModule__factory";
 import { IssuanceModule__factory } from "../../typechain/factories/IssuanceModule__factory";
 import { NavIssuanceModule__factory } from "../../typechain/factories/NavIssuanceModule__factory";
+import { CustomOracleNavIssuanceModule__factory } from "../../typechain/factories/CustomOracleNavIssuanceModule__factory";
 import { SingleIndexModule__factory } from "../../typechain/factories/SingleIndexModule__factory";
 import { StakingModule__factory } from "../../typechain/factories/StakingModule__factory";
 import { StreamingFeeModule__factory } from "../../typechain/factories/StreamingFeeModule__factory";
@@ -44,6 +51,10 @@ export default class DeployModules {
 
   public async deployIssuanceModule(controller: Address): Promise<IssuanceModule> {
     return await new IssuanceModule__factory(this._deployerSigner).deploy(controller);
+  }
+
+  public async deployDebtIssuanceModule(controller: Address): Promise<DebtIssuanceModule> {
+    return await new DebtIssuanceModule__factory(this._deployerSigner).deploy(controller);
   }
 
   public async deployAmmModule(controller: Address): Promise<AmmModule> {
@@ -68,6 +79,10 @@ export default class DeployModules {
 
   public async deployNavIssuanceModule(controller: Address, weth: Address): Promise<NavIssuanceModule> {
     return await new NavIssuanceModule__factory(this._deployerSigner).deploy(controller, weth);
+  }
+
+  public async deployCustomOracleNavIssuanceModule(controller: Address, weth: Address): Promise<CustomOracleNavIssuanceModule> {
+    return await new CustomOracleNavIssuanceModule__factory(this._deployerSigner).deploy(controller, weth);
   }
 
   public async deployTradeModule(controller: Address): Promise<TradeModule> {
@@ -134,5 +149,31 @@ export default class DeployModules {
 
   public async deployGovernanceModule(controller: Address): Promise<GovernanceModule> {
     return await new GovernanceModule__factory(this._deployerSigner).deploy(controller);
+  }
+
+  public async deployCompoundLeverageModule(
+    controller: Address,
+    compToken: Address,
+    comptroller: Address,
+    cEth: Address,
+    weth: Address,
+    libraryName: string,
+    libraryAddress: Address
+  ): Promise<CompoundLeverageModule> {
+    const linkId = convertLibraryNameToLinkId(libraryName);
+
+    return await new CompoundLeverageModule__factory(
+      // @ts-ignore
+      {
+        [linkId]: libraryAddress,
+      },
+      this._deployerSigner
+    ).deploy(
+      controller,
+      compToken,
+      comptroller,
+      cEth,
+      weth,
+    );
   }
 }

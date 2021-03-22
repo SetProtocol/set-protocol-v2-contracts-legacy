@@ -32,6 +32,10 @@ export interface AirdropSettings {
   anyoneAbsorb: boolean;
 }
 
+export interface CustomOracleNAVIssuanceSettings extends NAVIssuanceSettings {
+  setValuer: Address;
+}
+
 export interface NAVIssuanceSettings {
   managerIssuanceHook: Address;
   managerRedemptionHook: Address;

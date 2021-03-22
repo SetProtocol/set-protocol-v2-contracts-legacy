@@ -1,5 +1,5 @@
 /*
-    Copyright 2020 Set Labs Inc.
+    Copyright 2021 Set Labs Inc.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -21,11 +21,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
 
 import { ISetToken } from "../../../interfaces/ISetToken.sol";
+import { IModuleIssuanceHook } from "../../../interfaces/IModuleIssuanceHook.sol";
 import { Invoke } from "../../../protocol/lib/Invoke.sol";
+import { Position } from "../../../protocol/lib/Position.sol";
 import { PreciseUnitMath } from "../../../lib/PreciseUnitMath.sol";
 
-contract ModuleIssuanceHookMock {
+contract ModuleIssuanceHookMock is IModuleIssuanceHook {
     using Invoke for ISetToken;
+    using Position for ISetToken;
     using SafeCast for int256;
     using PreciseUnitMath for uint256;
 
@@ -33,26 +36,35 @@ contract ModuleIssuanceHookMock {
         _setToken.initializeModule();
     }
 
-    function issueHook(
+    function addExternalPosition(ISetToken _setToken, address _component, int256 _quantity) external {
+        _setToken.editExternalPosition(_component, address(this), _quantity, "");
+    }
+
+    function moduleIssueHook(ISetToken _setToken, uint256 _setTokenQuantity) external override {}
+    function moduleRedeemHook(ISetToken _setToken, uint256 _setTokenQuantity) external override {}
+
+    function componentIssueHook(
         ISetToken _setToken,
         uint256 _setTokenQuantity,
-        address _component
-    ) external {
-        int256 externalPositionUnit = _setToken.getExternalPositionRealUnit(_component, address(this));
+        IERC20 _component,
+        bool /* _isEquity */
+    ) external override {
+        int256 externalPositionUnit = _setToken.getExternalPositionRealUnit(address(_component), address(this));
         uint256 totalNotionalExternalModule = _setTokenQuantity.preciseMul(externalPositionUnit.toUint256());
 
         // Invoke the SetToken to send the token of total notional to this address
-        _setToken.invokeTransfer(_component, address(this), totalNotionalExternalModule);
+        _setToken.invokeTransfer(address(_component), address(this), totalNotionalExternalModule);
     }
 
-    function redeemHook(
+    function componentRedeemHook(
         ISetToken _setToken,
         uint256 _setTokenQuantity,
-        address _component
-    ) external {
+        IERC20 _component,
+        bool /* _isEquity */
+    ) external override {
         // Send the component to the settoken
-        int256 externalPositionUnit = _setToken.getExternalPositionRealUnit(_component, address(this));
+        int256 externalPositionUnit = _setToken.getExternalPositionRealUnit(address(_component), address(this));
         uint256 totalNotionalExternalModule = _setTokenQuantity.preciseMul(externalPositionUnit.toUint256());
-        IERC20(_component).transfer(address(_setToken), totalNotionalExternalModule);
+        _component.transfer(address(_setToken), totalNotionalExternalModule);
     }
 }
