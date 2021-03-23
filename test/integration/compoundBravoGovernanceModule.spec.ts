@@ -201,6 +201,23 @@ describe("CompoundBravoGovernanceModule", () => {
         expect(proposalData.forVotes).to.eq(ether(200000));
         expect(proposalData.againstVotes).to.eq(ZERO);
       });
+
+      context("when voting against", async () => {
+        beforeEach(() => {
+          subjectSupport = false;
+        });
+
+        it("should vote against the proposal in Compound", async () => {
+          await subject();
+
+          const getProposalData = compoundSetup.compoundGovernorBravoDelegate.interface.encodeFunctionData("proposals", [BigNumber.from(2)]);
+          const response = await subjectCaller.wallet.call({ to: compoundSetup.compoundGovernorBravoDelegator.address, data: getProposalData });
+          const proposalData = compoundSetup.compoundGovernorBravoDelegate.interface.decodeFunctionResult("proposals", response);
+
+          expect(proposalData.againstVotes).to.eq(ether(200000));
+          expect(proposalData.forVotes).to.eq(ZERO);
+        });
+      });
     });
 
     describe("#delegate", async () => {

@@ -136,11 +136,11 @@ export default class DeployExternalContracts {
     return await new CompoundGovernorAlpha__factory(this._deployerSigner).deploy(_timelock, _comp, _guardian);
   }
 
-  public async deplyCompoundGovernorBravoDelegate(): Promise<CompoundGovernorBravoDelegate> {
+  public async deployCompoundGovernorBravoDelegate(): Promise<CompoundGovernorBravoDelegate> {
     return await new CompoundGovernorBravoDelegate__factory(this._deployerSigner).deploy();
   }
 
-  public async deplyCompoundGovernorBravoDelegator(
+  public async deployCompoundGovernorBravoDelegator(
     timelock: Address,
     comp: Address,
     admin: Address,

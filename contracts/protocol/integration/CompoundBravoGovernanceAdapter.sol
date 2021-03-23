@@ -1,5 +1,5 @@
 /*
-    Copyright 2020 Set Labs Inc.
+    Copyright 2021 Set Labs Inc.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,10 +30,10 @@ contract CompoundBravoGovernanceAdapter {
 
     /* ============ Constants ============ */
 
-    // Signature of the propose function in Compound Governor Alpha. This is used to encode the calldata for the propose function
+    // Signature of the propose function in Compound Governor Bravo. This is used to encode the calldata for the propose function
     string public constant PROPOSE_SIGNATURE = "propose(address[],uint256[],string[],bytes[],string)";
     
-    // Signature of the delegate function in Compound Governor Alpha
+    // Signature of the delegate function in Compound Governor Bravo
     string public constant DELEGATE_SIGNATURE = "delegate(address)";
 
     address public constant ZERO_ADDRESS = 0x0000000000000000000000000000000000000000;

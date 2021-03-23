@@ -99,8 +99,8 @@ export class CompoundFixture {
   }
 
   public async initializeGovernorBravo() {
-    this.compoundGovernorBravoDelegate = await this._deployer.external.deplyCompoundGovernorBravoDelegate();
-    this.compoundGovernorBravoDelegator = await this._deployer.external.deplyCompoundGovernorBravoDelegator(
+    this.compoundGovernorBravoDelegate = await this._deployer.external.deployCompoundGovernorBravoDelegate();
+    this.compoundGovernorBravoDelegator = await this._deployer.external.deployCompoundGovernorBravoDelegator(
       this.compoundTimelock.address,
       this.comp.address,
       this._ownerAddress,
