@@ -5,6 +5,12 @@
   <a href='https://coveralls.io/github/SetProtocol/set-protocol-v2-contracts?branch=master'><img src='https://coveralls.io/repos/github/SetProtocol/set-protocol-v2-contracts/badge.svg?branch=master&amp;t=4pzROZ' alt='Coverage Status' /></a>
 </p>
 
+# [DEPRECATED]
+
+This project has moved to a new location: [set-protocol-v2][55]
+
+[55]: https://github.com/SetProtocol/set-protocol-v2
+
 # Set Protocol V2 Contract Repository
 
 ## Contracts
