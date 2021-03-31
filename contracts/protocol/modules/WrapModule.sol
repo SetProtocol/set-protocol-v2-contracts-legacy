@@ -34,6 +34,7 @@ import { ModuleBase } from "../lib/ModuleBase.sol";
 import { Position } from "../lib/Position.sol";
 import { PreciseUnitMath } from "../../lib/PreciseUnitMath.sol";
 
+
 /**
  * @title WrapModule
  * @author Set Protocol
@@ -90,7 +91,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
     }
 
     /* ============ External Functions ============ */
-    
+
     /**
      * MANAGER-ONLY: Instructs the SetToken to wrap an underlying asset into a wrappedToken via a specified adapter.
      *
@@ -106,7 +107,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
         address _wrappedToken,
         uint256 _underlyingUnits,
         string calldata _integrationName
-    ) 
+    )
         external
         nonReentrant
         onlyManagerAndValidSet(_setToken)
@@ -148,7 +149,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
         address _wrappedToken,
         uint256 _underlyingUnits,
         string calldata _integrationName
-    ) 
+    )
         external
         nonReentrant
         onlyManagerAndValidSet(_setToken)
@@ -290,7 +291,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         address _transactPosition,
         uint256 _transactPositionUnits
-    ) 
+    )
         internal
         view
     {
@@ -303,9 +304,9 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * The WrapModule calculates the total notional underlying to wrap, approves the underlying to the 3rd party 
+     * The WrapModule calculates the total notional underlying to wrap, approves the underlying to the 3rd party
      * integration contract, then invokes the SetToken to call wrap by passing its calldata along. When raw ETH
-     * is being used (_usesEther = true) WETH position must first be unwrapped and underlyingAddress sent to 
+     * is being used (_usesEther = true) WETH position must first be unwrapped and underlyingAddress sent to
      * adapter must be external protocol's ETH representative address.
      *
      * Returns notional amount of underlying tokens and wrapped tokens that were wrapped.
@@ -317,7 +318,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
         address _wrappedToken,
         uint256 _underlyingUnits,
         bool _usesEther
-    ) 
+    )
         internal
         returns (uint256, uint256)
     {
@@ -440,7 +441,6 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
             _wrappedToken,
             _notionalUnderlying
         );
-
         _setToken.invoke(callTarget, callValue, callByteData);
     }
 
@@ -452,7 +452,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
         IWrapAdapter _wrapAdapter,
         address _underlyingToken,
         address _wrappedToken,
-        uint256 _notionalUnderlying
+        uint256 notionalWrappedToken
     ) internal {
         (
             address callTarget,
@@ -461,7 +461,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
         ) = _wrapAdapter.getUnwrapCallData(
             _underlyingToken,
             _wrappedToken,
-            _notionalUnderlying
+            notionalWrappedToken
         );
 
         _setToken.invoke(callTarget, callValue, callByteData);
@@ -499,7 +499,7 @@ contract WrapModule is ModuleBase, ReentrancyGuard {
 
         return (
             underlyingTokenBalance,
-            wrapTokenBalance            
+            wrapTokenBalance
         );
     }
 }

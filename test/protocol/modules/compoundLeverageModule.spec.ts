@@ -1575,7 +1575,7 @@ describe("CompoundLeverageModule", () => {
           });
 
           it("should revert", async () => {
-            await expect(subject()).to.be.revertedWith("Redeem failed");
+            await expect(subject()).to.be.revertedWith("Redeem underlying failed");
           });
         });
 

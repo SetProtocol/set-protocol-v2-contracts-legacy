@@ -155,7 +155,7 @@ describe("CompoundWrapAdapter", () => {
     it("should return correct data", async () => {
       const [targetAddress, ethValue, callData] = await subject();
 
-      const expectedCallData = cDai.interface.encodeFunctionData("redeemUnderlying", [subjectQuantity]);
+      const expectedCallData = cDai.interface.encodeFunctionData("redeem", [subjectQuantity]);
 
       expect(targetAddress).to.eq(subjectCToken);
       expect(ethValue).to.eq(ZERO);
